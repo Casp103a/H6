@@ -11,14 +11,15 @@ namespace NimbusWatchApi.Database
 
   public class DatabaseManager : IDatabaseManager
   {
-    // Update these values for your environment.
-    private const string ConnectionString =
-      "Server=127.0.0.1;Port=3306;Database=nimbuswatch;User ID=root;Password=your_password;";
+    private readonly string _connectionString;
 
-    public DatabaseManager()
+    public DatabaseManager(string connectionString)
     {
-      Users = new UserTableManager(ConnectionString);
-      RefreshTokens = new RefreshTokenTableManager(ConnectionString);
+      _connectionString = connectionString;
+      Users = new UserTableManager(_connectionString);
+      RefreshTokens = new RefreshTokenTableManager(_connectionString);
+
+      SetupDatabase().GetAwaiter().GetResult();
     }
 
     public IRefreshTokenTableManager RefreshTokens { get; set; }
@@ -36,7 +37,7 @@ namespace NimbusWatchApi.Database
 
     private async Task<MySqlConnection> OpenConnection()
     {
-      var connection = new MySqlConnection(ConnectionString);
+      var connection = new MySqlConnection(_connectionString);
       await connection.OpenAsync();
       return connection;
     }

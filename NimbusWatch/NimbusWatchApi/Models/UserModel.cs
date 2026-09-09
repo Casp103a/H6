@@ -24,6 +24,6 @@ namespace NimbusWatchApi.Models
     public DateTime CreatedAt { get; set; }
 
     [Required]
-    public int CompanyId { get; set; }
+    public string CompanyId { get; set; }
   }
 }

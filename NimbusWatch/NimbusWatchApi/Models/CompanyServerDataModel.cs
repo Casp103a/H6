@@ -12,7 +12,7 @@ namespace NimbusWatchApi.Models
     public string CompanyId { get; set; }
 
     [Required]
-    public string ServerName { get; set; }
+    public int ServerId { get; set; }
 
     [Required]
     public int CPUUsages { get; set; }

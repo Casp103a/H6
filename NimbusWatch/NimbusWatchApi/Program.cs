@@ -1,6 +1,9 @@
-
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
+using NimbusWatchApi.Database;
+using NimbusWatchApi.Managers;
+using NimbusWatchApi.Services;
 using System.Security.Claims;
 
 namespace NimbusWatchApi
@@ -18,18 +21,18 @@ namespace NimbusWatchApi
       builder.Services.AddOpenApi();
 
       builder.Services.AddAuthorization();
-      builder.Services.AddAuthentication(option =>
+      builder.Services.AddAuthentication(options =>
       {
-        option.DefaultAuthenticateScheme =
-        option.DefaultChallengeScheme =
-        option.DefaultForbidScheme =
-        option.DefaultScheme =
-        option.DefaultSignInScheme =
-        option.DefaultSignOutScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultAuthenticateScheme =
+        options.DefaultChallengeScheme =
+        options.DefaultForbidScheme =
+        options.DefaultScheme =
+        options.DefaultSignInScheme =
+        options.DefaultSignOutScheme = JwtBearerDefaults.AuthenticationScheme;
       })
       .AddJwtBearer(option =>
       {
-        option.TokenValidationParameters = new TokenValidationParameters()
+        option.TokenValidationParameters = new TokenValidationParameters
         {
           ValidateIssuer = true,
           ValidIssuer = builder.Configuration["JWT:Issuer"],
@@ -67,6 +70,16 @@ namespace NimbusWatchApi
         };
       });
 
+      builder.Services.AddScoped<IUserManager, UserManager>();
+      builder.Services.AddScoped<IRefreshTokenManager, RefreshTokenManager>();
+      builder.Services.AddScoped<IPasswordService, PasswordService>();
+      builder.Services.AddScoped<ITokenService, TokenService>();
+
+      var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");
+
+      builder.Services.AddScoped<IDatabaseManager>(_ => new DatabaseManager(connectionString));
+
       var app = builder.Build();
 
       // Configure the HTTP request pipeline.
@@ -77,6 +90,7 @@ namespace NimbusWatchApi
 
       app.UseHttpsRedirection();
 
+      app.UseAuthentication();
       app.UseAuthorization();
 
 

@@ -8,7 +8,7 @@ namespace NimbusWatchApi.Database.TableManagers
     Task<bool> AddUser(UserModel user);
     Task<bool> UpdateUser(UserModel user);
     Task<bool> DeleteUser(int id);
-    Task<List<UserModel>> GetAllUsers();
+    Task<List<UserModel>> GetAllUsers(string companyId);
     Task<UserModel?> GetUser(int id);
     Task<UserModel?> GetUser(string email);
   }
@@ -91,7 +91,7 @@ namespace NimbusWatchApi.Database.TableManagers
       return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
-    public async Task<List<UserModel>> GetAllUsers()
+    public async Task<List<UserModel>> GetAllUsers(string companyId)
     {
       var users = new List<UserModel>();
 
@@ -100,8 +100,11 @@ namespace NimbusWatchApi.Database.TableManagers
 
       cmd.CommandText = """
         SELECT Id, Email, Password, RoleId, IsActive, CreatedAt, CompanyId
-        FROM users;
+        FROM users
+        WHERE CompanyId = @CompanyId;
         """;
+
+      cmd.Parameters.AddWithValue("@CompanyId", companyId);
 
       await using var reader = await cmd.ExecuteReaderAsync();
 
@@ -169,7 +172,7 @@ namespace NimbusWatchApi.Database.TableManagers
         RoleId = reader.GetInt32("RoleId"),
         IsActive = reader.GetBoolean("IsActive"),
         CreatedAt = reader.GetDateTime("CreatedAt"),
-        CompanyId = reader.GetInt32("CompanyId")
+        CompanyId = reader.GetString("CompanyId")
       };
     }
   }

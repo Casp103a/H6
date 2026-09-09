@@ -16,6 +16,6 @@ namespace ClassLibrary.Dtos
     public int RoleId { get; set; }
 
     [Required]
-    public int CompanyId { get; set; }
+    public string CompanyId { get; set; }
   }
 }

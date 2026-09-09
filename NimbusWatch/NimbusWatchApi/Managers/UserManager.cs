@@ -10,7 +10,7 @@ namespace NimbusWatchApi.Managers
     Task<bool?> CreateAsync(RegisterUserDto user);
     Task<bool?> UpdateAsync(UserModel user);
     Task<bool?> DeleteAsync(UserModel user);
-    Task<List<UserModel>> GetAllUsers();
+    Task<List<UserModel>> GetAllUsers(string companyId);
     Task<UserModel?> GetUser(int id);
     Task<UserModel?> GetUser(string email);
     Task<bool> CheckPasswordSignInAsync(LoginRequestDto login, string password);
@@ -94,11 +94,11 @@ namespace NimbusWatchApi.Managers
       }
     }
 
-    public async Task<List<UserModel>> GetAllUsers()
+    public async Task<List<UserModel>> GetAllUsers(string companyId)
     {
       try
       {
-        return await databaseManager.Users.GetAllUsers();
+        return await databaseManager.Users.GetAllUsers(companyId);
       }
       catch (Exception)
       {
