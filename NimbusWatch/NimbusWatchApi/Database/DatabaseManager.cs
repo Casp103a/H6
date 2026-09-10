@@ -1,4 +1,5 @@
-﻿using MySqlConnector;
+﻿using ClassLibrary.Emuns;
+using MySqlConnector;
 using NimbusWatchApi.Database.TableManagers;
 
 namespace NimbusWatchApi.Database
@@ -7,6 +8,8 @@ namespace NimbusWatchApi.Database
   {
     IRefreshTokenTableManager RefreshTokens { get; }
     IUserTableManager Users { get; }
+    ICompanyTableManager Companys { get; }
+    IRoleTableManager Roles { get; }
   }
 
   public class DatabaseManager : IDatabaseManager
@@ -18,13 +21,16 @@ namespace NimbusWatchApi.Database
       _connectionString = connectionString;
       Users = new UserTableManager(_connectionString);
       RefreshTokens = new RefreshTokenTableManager(_connectionString);
+      Companys = new CompanyTableManager(_connectionString);
+      Roles = new RoleTableManager(_connectionString);
 
       SetupDatabase().GetAwaiter().GetResult();
     }
 
-    public IRefreshTokenTableManager RefreshTokens { get; set; }
-    public IUserTableManager Users { get; set; }
-
+    public IRefreshTokenTableManager RefreshTokens { get; }
+    public IUserTableManager Users { get; }
+    public ICompanyTableManager Companys { get; }
+    public IRoleTableManager Roles { get; }
 
     private async Task SetupDatabase()
     {
@@ -33,6 +39,14 @@ namespace NimbusWatchApi.Database
 
       if (!await TableExists("refreshtokens"))
         await CreateRefreshTokenTable();
+
+      if (!await TableExists("companys"))
+        await CreateCompanyTable();
+
+      if (!await TableExists("roles"))
+        await CreateRoleTable();
+
+      await SetupRoles();
     }
 
     private async Task<MySqlConnection> OpenConnection()
@@ -97,10 +111,49 @@ namespace NimbusWatchApi.Database
         RoleId INT NOT NULL,
         IsActive BOOLEAN NOT NULL,
         CreatedAt DATETIME NOT NULL,
-        CompanyId INT NOT NULL
+        CompanyId VARCHAR(36) NOT NULL
         );
         """;
       await cmd.ExecuteNonQueryAsync();
+    }
+
+    private async Task CreateCompanyTable()
+    {
+      await using var connection = await OpenConnection();
+      await using var cmd = connection.CreateCommand();
+      cmd.CommandText = """
+        CREATE TABLE companys (
+        Id CHAR(36) PRIMARY KEY,
+        Name VARCHAR(255) NOT NULL UNIQUE,
+        CreatedAt DATETIME NOT NULL
+        );
+        """;
+      await cmd.ExecuteNonQueryAsync();
+    }
+
+    private async Task CreateRoleTable()
+    {
+      await using var connection = await OpenConnection();
+      await using var cmd = connection.CreateCommand();
+      cmd.CommandText = """
+        CREATE TABLE roles (
+        Id INT AUTO_INCREMENT PRIMARY KEY,
+        RoleName VARCHAR(255) NOT NULL UNIQUE
+        );
+        """;
+      await cmd.ExecuteNonQueryAsync();
+    }
+
+    private async Task SetupRoles()
+    {
+      var roles = Enum.GetValues(typeof(RoleEnums)).Cast<RoleEnums>().Select(r => r.ToString()).ToList();
+      foreach (var role in roles)
+      {
+        if (!await Roles.DoesRoleExist(role))
+        {
+          await Roles.CreateRole(role);
+        }
+      }
     }
   }
 }

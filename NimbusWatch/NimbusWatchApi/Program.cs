@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi;
 using NimbusWatchApi.Database;
 using NimbusWatchApi.Managers;
 using NimbusWatchApi.Services;
@@ -70,10 +69,23 @@ namespace NimbusWatchApi
         };
       });
 
+      builder.Services.AddCors(options =>
+      {
+        options.AddPolicy("AllowFrontend", policy =>
+        {
+          policy.WithOrigins("http://localhost:8000", "https://localhost:8000")
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        });
+      });
+
       builder.Services.AddScoped<IUserManager, UserManager>();
       builder.Services.AddScoped<IRefreshTokenManager, RefreshTokenManager>();
       builder.Services.AddScoped<IPasswordService, PasswordService>();
       builder.Services.AddScoped<ITokenService, TokenService>();
+      builder.Services.AddScoped<ICompanyManager, CompanyManager>();
+      builder.Services.AddScoped<IRoleManager, RoleManager>();
 
       var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");
@@ -90,9 +102,10 @@ namespace NimbusWatchApi
 
       app.UseHttpsRedirection();
 
+      app.UseCors("AllowFrontend");
+
       app.UseAuthentication();
       app.UseAuthorization();
-
 
       app.MapControllers();
 
