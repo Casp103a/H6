@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi;
 using NimbusWatchApi.Database;
 using NimbusWatchApi.Managers;
 using NimbusWatchApi.Services;
@@ -19,6 +19,14 @@ namespace NimbusWatchApi
       builder.Services.AddControllers();
       // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
       builder.Services.AddOpenApi();
+
+      builder.Services.Configure<ForwardedHeadersOptions>(options =>
+      {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
+                                   ForwardedHeaders.XForwardedProto;
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+      });
 
       builder.Services.AddAuthorization();
       builder.Services.AddAuthentication(options =>
@@ -70,10 +78,23 @@ namespace NimbusWatchApi
         };
       });
 
+      //builder.Services.AddCors(options =>
+      //{
+      //  options.AddPolicy("AllowFrontend", policy =>
+      //  {
+      //    policy.WithOrigins("http://localhost:8000", "https://localhost:8000", "http://10.142.107.28:8000", "https://10.142.107.28:8000")
+      //          .AllowAnyHeader()
+      //          .AllowAnyMethod()
+      //          .AllowCredentials();
+      //  });
+      //});
+
       builder.Services.AddScoped<IUserManager, UserManager>();
       builder.Services.AddScoped<IRefreshTokenManager, RefreshTokenManager>();
       builder.Services.AddScoped<IPasswordService, PasswordService>();
       builder.Services.AddScoped<ITokenService, TokenService>();
+      builder.Services.AddScoped<ICompanyManager, CompanyManager>();
+      builder.Services.AddScoped<IRoleManager, RoleManager>();
 
       var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");
@@ -88,11 +109,13 @@ namespace NimbusWatchApi
         app.MapOpenApi();
       }
 
+      app.UseForwardedHeaders();
       app.UseHttpsRedirection();
+
+      //app.UseCors("AllowFrontend");
 
       app.UseAuthentication();
       app.UseAuthorization();
-
 
       app.MapControllers();
 

@@ -6,14 +6,16 @@ namespace NimbusWatchApi.Managers
   public interface IRefreshTokenManager
   {
     Task<bool> Add(RefreshTokens refreshToken);
-    Task<bool> Update(Guid TokenId, bool HasBeenUsed);
+    Task<bool> Update(Guid tokenId, bool hasBeenUsed);
     Task<bool> Delete(Guid refreshTokenId);
-    Task<RefreshTokens?> GetRefreshToken(Guid Id, UserModel user);
+    Task<RefreshTokens?> GetRefreshToken(Guid id, UserModel user);
+    Task<bool> RotateRefreshToken(Guid usedTokenId, UserModel user, string expectedRefreshTokenHash, RefreshTokens newRefreshToken);
   }
 
   public class RefreshTokenManager : IRefreshTokenManager
   {
     private readonly IDatabaseManager databaseManager;
+
     public RefreshTokenManager(IDatabaseManager databaseManager)
     {
       this.databaseManager = databaseManager;
@@ -21,29 +23,9 @@ namespace NimbusWatchApi.Managers
 
     public async Task<bool> Delete(Guid refreshTokenId)
     {
-      var token = await databaseManager.RefreshTokens.GetAllRefreshTokens().ContinueWith(t => t.Result.FirstOrDefault(x => x.ID == refreshTokenId));
-
-      if (token != null)
-      {
-        await databaseManager.RefreshTokens.RemoveRefreshToken(token.ID);
-        return true;
-      }
-
-      return false;
-    }
-
-    public async Task<RefreshTokens?> GetRefreshToken(Guid Id, UserModel user)
-    {
-      var tokens = await databaseManager.RefreshTokens.GetAllRefreshTokens();
-      return tokens.FirstOrDefault(x => x.ID == Id && x.UserId == user.Id);
-    }
-
-    public async Task<bool> Add(RefreshTokens refreshToken)
-    {
       try
       {
-        var result = await databaseManager.RefreshTokens.AddRefreshToken(refreshToken);
-        return result;
+        return await databaseManager.RefreshTokens.RemoveRefreshToken(refreshTokenId);
       }
       catch (Exception)
       {
@@ -51,24 +33,44 @@ namespace NimbusWatchApi.Managers
       }
     }
 
-    public async Task<bool> Update(Guid TokenId, bool HasBeenUsed)
+    public async Task<RefreshTokens?> GetRefreshToken(Guid id, UserModel user)
+    {
+      return await databaseManager.RefreshTokens.GetRefreshToken(id, user.Id);
+    }
+
+    public async Task<bool> Add(RefreshTokens refreshToken)
     {
       try
       {
-        var token = await databaseManager.RefreshTokens.GetAllRefreshTokens().ContinueWith(t => t.Result.FirstOrDefault(x => x.ID == TokenId));
+        return await databaseManager.RefreshTokens.AddRefreshToken(refreshToken);
+      }
+      catch (Exception)
+      {
+        return false;
+      }
+    }
 
-        if (token == null) return false;
+    public async Task<bool> Update(Guid tokenId, bool hasBeenUsed)
+    {
+      try
+      {
+        return await databaseManager.RefreshTokens.UpdateRefreshToken(tokenId, hasBeenUsed);
+      }
+      catch (Exception)
+      {
+        return false;
+      }
+    }
 
-        token.RefreshTokenIsUsed = HasBeenUsed;
-
-        if (await databaseManager.RefreshTokens.UpdateRefreshToken(TokenId, HasBeenUsed))
-        {
-          return true;
-        }
-        else
-        {
-          return false;
-        }
+    public async Task<bool> RotateRefreshToken(Guid usedTokenId, UserModel user, string expectedRefreshTokenHash, RefreshTokens newRefreshToken)
+    {
+      try
+      {
+        return await databaseManager.RefreshTokens.RotateRefreshToken(
+          usedTokenId,
+          user.Id,
+          expectedRefreshTokenHash,
+          newRefreshToken);
       }
       catch (Exception)
       {

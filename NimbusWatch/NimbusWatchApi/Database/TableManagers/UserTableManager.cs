@@ -13,20 +13,10 @@ namespace NimbusWatchApi.Database.TableManagers
     Task<UserModel?> GetUser(string email);
   }
 
-  public class UserTableManager : IUserTableManager
+  public class UserTableManager : TableManager, IUserTableManager
   {
-    private readonly string connectionString;
-
-    public UserTableManager(string connectionString)
+    public UserTableManager(string connectionString) : base(connectionString)
     {
-      this.connectionString = connectionString;
-    }
-
-    private async Task<MySqlConnection> OpenConnection()
-    {
-      var connection = new MySqlConnection(connectionString);
-      await connection.OpenAsync();
-      return connection;
     }
 
     public async Task<bool> AddUser(UserModel user)
