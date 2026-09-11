@@ -62,23 +62,31 @@ namespace NimbusWatchApi.Database.TableManagers
     {
       throw new NotImplementedException();
     }
+
     public async Task<CompanyModel?> GetCompany(string companyId)
     {
       await using var connection = await OpenConnection();
       await using var cmd = connection.CreateCommand();
 
-      cmd.CommandText = "SELECT * FROM companys WHERE Id = @Id;";
+      cmd.CommandText = "SELECT Id, Name FROM companys WHERE Id = @Id;";
       cmd.Parameters.AddWithValue("@Id", companyId);
 
       await using var reader = await cmd.ExecuteReaderAsync();
-      return MapCompany(reader);
+      if (await reader.ReadAsync())
+      {
+        return MapCompany(reader);
+      }
+      else
+      {
+        return null;
+      }
     }
 
     private CompanyModel MapCompany(MySqlDataReader reader)
     {
       return new CompanyModel
       {
-        Id = Guid.Parse(reader.GetString("Id")),
+        Id = reader.GetGuid("Id"),
         Name = reader.GetString("Name"),
       };
     }
