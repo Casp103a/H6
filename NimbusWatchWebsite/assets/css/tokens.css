@@ -1,0 +1,168 @@
+:root {
+    /* Tailwind gray palette (oklch) */
+    --nf-gray-50:  oklch(98.5% 0.002 247.839);
+    --nf-gray-100: oklch(96.7% 0.003 264.542);
+    --nf-gray-200: oklch(92.8% 0.006 264.531);
+    --nf-gray-300: oklch(87.2% 0.01  258.338);
+    --nf-gray-400: oklch(70.7% 0.022 261.325);
+    --nf-gray-500: oklch(55.1% 0.027 264.364);
+    --nf-gray-600: oklch(44.6% 0.03  256.802);
+    --nf-gray-700: oklch(37.3% 0.034 259.733);
+    --nf-gray-800: oklch(27.8% 0.033 256.848);
+    --nf-gray-900: oklch(21%   0.034 264.665);
+    --nf-gray-950: oklch(13%   0.028 261.692);
+
+    /* DaisyUI semantic colors (light) */
+    --nf-base-100: oklch(100% 0 0);
+    --nf-base-200: oklch(98%  0.003 247.858);
+    --nf-base-300: oklch(96%  0.007 247.896);
+    --nf-base-content: oklch(20% 0.042 265.755);
+
+    /* THE brand blue — sacred */
+    --nf-primary: oklch(0.557 0.224 264.94);
+    --nf-primary-content: oklch(93% 0.034 272.788);
+    --nf-primary-in-content: oklch(98% 0.034 272.788);
+
+    --nf-info:    oklch(74% 0.16  232.661);
+    --nf-success: oklch(0.696 0.17 162.48);
+    --nf-warning: oklch(0.769 0.153 70.08);
+    --nf-error:   oklch(0.637 0.237 25.331);
+    --nf-neutral-status: oklch(0.551 0.027 264.36);
+
+    /* Badge pairs derived from the three status colors above — a pale
+       background tint plus a matching darker, readable text color. Used by
+       .status-pill/.state-pill's --ok/--warn/--crit modifiers below. */
+    --nf-success-tint: oklch(from var(--nf-success) 96% 0.045 h);
+    --nf-success-ink:  oklch(from var(--nf-success) 0.44 c h);
+    --nf-warning-tint: oklch(from var(--nf-warning) 96% 0.05  h);
+    --nf-warning-ink:  oklch(from var(--nf-warning) 0.46 c h);
+    --nf-error-tint:   oklch(from var(--nf-error)   96% 0.04  h);
+    --nf-error-ink:    oklch(from var(--nf-error)   0.46 c h);
+
+    /* Derived (relative color syntax) */
+    --nf-primary-dark:   oklch(from var(--nf-primary) calc(l - 0.06) c h);
+    --nf-primary-light:  oklch(from var(--nf-primary) 96% 0.03 h);
+    --nf-primary-border: oklch(from var(--nf-primary) 85% 0.06 h);
+    --nf-primary-ring:   oklch(from var(--nf-primary) l c h / 25%);
+
+    --nf-text:         var(--nf-gray-700);
+    --nf-text-heading: var(--nf-gray-900);
+    --nf-text-muted:   var(--nf-gray-500);
+
+    --nf-border-color:       var(--nf-gray-300);
+    --nf-border-color-hover: var(--nf-gray-400);
+    --nf-border-color-focus: var(--nf-primary);
+
+    --nf-focus-ring:
+        0 0 0 1px var(--nf-border-color-focus),
+        0 0 0 4px oklch(from var(--nf-primary) l c h / 12%);
+
+    /* Typography */
+    --nf-font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    --nf-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    --nf-border-radius-sm: 4px;
+    --nf-border-radius:    6px;
+    --nf-border-radius-lg: 8px;
+
+    --nf-shadow-card: 0 1px 3px oklch(0% 0 0 / 6%);
+    --nf-transition:  border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+
+    --nf-input-bg: var(--nf-base-100);
+    --nf-input-height: 38px;
+    --nf-input-padding: 0.5rem 0.75rem;
+    --nf-placeholder-color: var(--nf-gray-400);
+
+    --nf-gradient-header: linear-gradient(var(--nf-gray-50), var(--nf-gray-100));
+
+    --nf-table-header-color: var(--nf-text);
+    --nf-table-border-color: var(--nf-gray-200);
+    --nf-table-row-hover:    var(--nf-base-200);
+    --nf-table-row-even:     var(--nf-base-200);
+    --nf-table-row-bg:       var(--nf-base-100);
+
+    /* Menus */
+    --nf-menu-bg:         var(--nf-base-100);
+    --nf-menu-border:     1px solid var(--nf-table-border-color);
+    --nf-menu-shadow:     0 8px 24px oklch(0% 0 0 / 8%), 0 2px 8px oklch(0% 0 0 / 4%);
+    --nf-menu-item-hover: var(--nf-base-300);
+
+    /* Theme-aware structural roles. Light values equal the literals the
+       original prototype hardcoded; only [data-theme="dark"] below adds
+       real values, so light mode is unchanged. */
+    --nf-quiet-bg:         var(--nf-gray-50);  /* recessed strips: page bg, search box, table footer */
+    --nf-divider:          var(--nf-gray-200); /* card/table borders, separators */
+    --nf-hairline:         var(--nf-gray-100); /* finer rules: row lines, axis rule */
+    --nf-track-bg:         var(--nf-gray-200); /* progress/ring track background */
+    --nf-hover-bg:         var(--nf-gray-100); /* button hover fill */
+    --nf-active-bg:        var(--nf-gray-200); /* button active/press fill */
+    --nf-badge-neutral-bg: var(--nf-gray-100); /* neutral pill background (inactive user, etc.) */
+    --nf-badge-neutral-fg: var(--nf-gray-600); /* neutral pill text */
+}
+
+/* ==========================================================================
+   Dark theme — toggled via data-theme="dark" on <html> (assets/js/dashboard.js)
+   ========================================================================== */
+[data-theme="dark"] {
+    --nf-base-100: oklch(27.8% 0.033 256.848);
+    --nf-base-200: oklch(23.26% 0.014 253.1);
+    --nf-base-300: oklch(21.15% 0.012 254.09);
+    --nf-base-content: oklch(96% 0.007 247.896);
+
+    --nf-text:         var(--nf-gray-200);
+    --nf-text-heading: oklch(98% 0.003 247.858);
+    --nf-text-muted:   var(--nf-gray-400);
+
+    --nf-border-color:       var(--nf-gray-700);
+    --nf-border-color-hover: var(--nf-gray-600);
+
+    --nf-primary-light:  oklch(from var(--nf-primary) 24% 0.08 h);
+    --nf-primary-border: oklch(from var(--nf-primary) 40% 0.1  h);
+    --nf-primary-dark:   oklch(from var(--nf-primary) 78% 0.1  h);
+
+    --nf-input-bg: var(--nf-base-100);
+    --nf-menu-bg:  var(--nf-base-100);
+
+    --nf-table-row-hover:    oklch(30% 0.03 256);
+    --nf-table-row-even:     var(--nf-base-200);
+    --nf-table-border-color: var(--nf-gray-700);
+    --nf-gradient-header:    linear-gradient(var(--nf-base-200), var(--nf-base-300));
+
+    --nf-quiet-bg:  var(--nf-base-300);
+    --nf-divider:   oklch(100% 0 0 / 12%);
+    --nf-hairline:  oklch(100% 0 0 / 7%);
+    --nf-track-bg:  oklch(100% 0 0 / 12%);
+    --nf-hover-bg:  oklch(100% 0 0 / 6%);
+    --nf-active-bg: oklch(100% 0 0 / 10%);
+
+    --nf-badge-neutral-bg: oklch(100% 0 0 / 10%);
+    --nf-badge-neutral-fg: var(--nf-gray-300);
+
+    --nf-shadow-card: 0 1px 4px oklch(0% 0 0 / 35%);
+}
+
+/* ==========================================================================
+   Nimbus Watch brand tokens — scoped to the logo mark/wordmark only. The
+   dashboard UI itself stays on the Metazo/Nova --nf-* system above; these
+   never drive dashboard chrome.
+   ========================================================================== */
+:root {
+    --nw-ink:              #2b2925;
+    --nw-slate:             #6f7f8c;
+    --nw-slate-light:       #8f9ea9;
+    --nw-straw:             #c8ab7e;
+    --nw-straw-shade:       #a98d62;
+    --nw-straw-shade-dark:  #8f7550;
+    --nw-paper:             #f3f0ea;
+    --nw-card:              #fbfaf7;
+    --nw-border:            #e4dfd5;
+    --nw-text-muted:        #6b665e;
+    --nw-text-on-dark-muted: #b3ada4;
+
+    --nw-word-a-color: var(--nw-ink);
+    --nw-word-b-color: var(--nw-slate);
+}
+[data-theme="dark"] {
+    --nw-word-a-color: var(--nw-paper);
+    --nw-word-b-color: #a8b6c0;
+}
