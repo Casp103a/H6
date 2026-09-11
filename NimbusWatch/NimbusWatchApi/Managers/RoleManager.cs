@@ -9,6 +9,7 @@ namespace NimbusWatchApi.Managers
     Task<bool> AddRole(CreateRoleDto role);
     Task<bool> RemoveRole(int roleId);
     Task<bool> DoesRoleExist(CreateRoleDto role);
+    Task<RoleDto?> GetRole(int roleId);
   }
 
   public class RoleManager : IRoleManager
@@ -69,6 +70,27 @@ namespace NimbusWatchApi.Managers
       catch (Exception)
       {
         return new List<RoleDto>();
+      }
+    }
+
+    public async Task<RoleDto?> GetRole(int roleId)
+    {
+      try
+      {
+        var role = await databaseManager.Roles.GetRoleById(roleId);
+
+        if (role == null)
+          return null;
+
+        return new RoleDto
+        {
+          Id = role.Id,
+          Name = role.RoleName
+        };
+      }
+      catch (Exception)
+      {
+        return null;
       }
     }
 

@@ -1,4 +1,5 @@
 ﻿using Microsoft.IdentityModel.Tokens;
+using NimbusWatchApi.Managers;
 using NimbusWatchApi.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -21,10 +22,12 @@ namespace NimbusWatchApi.Services
   {
     private readonly IConfiguration config;
     private readonly SymmetricSecurityKey key;
+    private readonly IRoleManager roleManager;
 
-    public TokenService(IConfiguration config)
+    public TokenService(IConfiguration config, IRoleManager roleManager)
     {
       this.config = config;
+      this.roleManager = roleManager;
       key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JWT:SigningKey"]!));
     }
 
@@ -46,12 +49,16 @@ namespace NimbusWatchApi.Services
     public string CreateToken(UserModel user, out Guid id)
     {
       id = Guid.NewGuid();
+      var role = roleManager.GetRole(user.RoleId).GetAwaiter().GetResult();
+
+      if (role == null)
+        return string.Empty;
 
       var claims = new List<Claim>
       {
         new Claim(JwtRegisteredClaimNames.GivenName, user.Email ?? string.Empty),
         new Claim(ClaimTypes.Name, user.Email ?? string.Empty),
-        new Claim(ClaimTypes.Role, user.RoleId.ToString()),
+        new Claim(ClaimTypes.Role, role.Name ?? string.Empty),
         new Claim(ClaimTypes.Sid, id.ToString())
       };
 

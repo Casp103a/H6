@@ -9,7 +9,7 @@ namespace NimbusWatchApi.Database.TableManagers
     Task<bool> DeleteRole(int roleId);
     Task<bool> DoesRoleExist(string roleName);
     Task<List<RoleModel>> GetAllRoles();
-
+    Task<RoleModel?> GetRoleById(int roleId);
   }
 
   public class RoleTableManager : TableManager, IRoleTableManager
@@ -80,6 +80,29 @@ namespace NimbusWatchApi.Database.TableManagers
       }
 
       return roles;
+    }
+
+    public async Task<RoleModel?> GetRoleById(int roleId)
+    {
+      await using var connection = await OpenConnection();
+      await using var cmd = connection.CreateCommand();
+
+      cmd.CommandText = """
+        SELECT *
+        FROM roles
+        WHERE Id = @RoleId;
+        """;
+
+      cmd.Parameters.AddWithValue("@RoleId", roleId);
+
+      await using var reader = await cmd.ExecuteReaderAsync();
+
+      if (await reader.ReadAsync())
+      {
+        return MapModel(reader);
+      }
+
+      return null;
     }
 
     private RoleModel MapModel(MySqlDataReader reader)
