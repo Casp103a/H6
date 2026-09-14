@@ -15,7 +15,7 @@ window.NWApi = (function () {
   "use strict";
 
   var BASE_URL = "https://nimbus-watch.com/api";
-  var NO_REFRESH_PREFIXES = ["/token/", "/login/"];
+  var NO_REFRESH_PREFIXES = ["/Token/", "/login/"];
 
   function rawRequest(method, path, body) {
     var opts = {
@@ -45,10 +45,10 @@ window.NWApi = (function () {
   // Cookie-based, so these carry no body — success/failure is just the
   // status code. Never throw: callers treat them as plain booleans.
   function validateToken() {
-    return rawRequest("POST", "/token/ValidateToken").then(function (r) { return r.res.ok; }, function () { return false; });
+    return rawRequest("POST", "/Token/ValidateToken").then(function (r) { return r.res.ok; }, function () { return false; });
   }
   function refreshToken() {
-    return rawRequest("POST", "/token/RefreshToken").then(function (r) { return r.res.ok; }, function () { return false; });
+    return rawRequest("POST", "/Token/RefreshToken").then(function (r) { return r.res.ok; }, function () { return false; });
   }
 
   // For a proactive check (e.g. before a page starts loading its own data)
