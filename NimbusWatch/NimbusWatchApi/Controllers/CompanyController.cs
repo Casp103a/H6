@@ -35,7 +35,7 @@ namespace NimbusWatchApi.Controllers
     }
 
     [HttpGet]
-    [Authorize(Roles = "User")]
+    [Authorize]
     public async Task<IActionResult> GetUsersCompany()
     {
       if (!ModelState.IsValid)

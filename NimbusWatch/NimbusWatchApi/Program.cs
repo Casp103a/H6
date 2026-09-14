@@ -22,10 +22,14 @@ namespace NimbusWatchApi
 
       builder.Services.Configure<ForwardedHeadersOptions>(options =>
       {
-        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
-                                   ForwardedHeaders.XForwardedProto;
-        options.KnownIPNetworks.Clear();
+        options.ForwardedHeaders =
+          ForwardedHeaders.XForwardedFor |
+          ForwardedHeaders.XForwardedProto |
+          ForwardedHeaders.XForwardedHost;
+
+        options.KnownNetworks.Clear();
         options.KnownProxies.Clear();
+        options.RequireHeaderSymmetry = false;
       });
 
       builder.Services.AddAuthorization();
@@ -78,17 +82,6 @@ namespace NimbusWatchApi
         };
       });
 
-      //builder.Services.AddCors(options =>
-      //{
-      //  options.AddPolicy("AllowFrontend", policy =>
-      //  {
-      //    policy.WithOrigins("http://localhost:8000", "https://localhost:8000", "http://10.142.107.28:8000", "https://10.142.107.28:8000")
-      //          .AllowAnyHeader()
-      //          .AllowAnyMethod()
-      //          .AllowCredentials();
-      //  });
-      //});
-
       builder.Services.AddScoped<IUserManager, UserManager>();
       builder.Services.AddScoped<IRefreshTokenManager, RefreshTokenManager>();
       builder.Services.AddScoped<IPasswordService, PasswordService>();
@@ -111,8 +104,6 @@ namespace NimbusWatchApi
 
       app.UseForwardedHeaders();
       app.UseHttpsRedirection();
-
-      //app.UseCors("AllowFrontend");
 
       app.UseAuthentication();
       app.UseAuthorization();
