@@ -10,6 +10,7 @@ namespace NimbusWatchApi.Database
     IUserTableManager Users { get; }
     ICompanyTableManager Companys { get; }
     IRoleTableManager Roles { get; }
+    IServiceClientTableManager ServiceClients { get; }
   }
 
   public class DatabaseManager : IDatabaseManager
@@ -23,6 +24,7 @@ namespace NimbusWatchApi.Database
       RefreshTokens = new RefreshTokenTableManager(_connectionString);
       Companys = new CompanyTableManager(_connectionString);
       Roles = new RoleTableManager(_connectionString);
+      ServiceClients = new ServiceClientTableManager(_connectionString);
 
       SetupDatabase().GetAwaiter().GetResult();
     }
@@ -31,6 +33,7 @@ namespace NimbusWatchApi.Database
     public IUserTableManager Users { get; }
     public ICompanyTableManager Companys { get; }
     public IRoleTableManager Roles { get; }
+    public IServiceClientTableManager ServiceClients { get; }
 
     private async Task SetupDatabase()
     {
@@ -45,6 +48,9 @@ namespace NimbusWatchApi.Database
 
       if (!await TableExists("roles"))
         await CreateRoleTable();
+
+      if (!await TableExists("serviceclients"))
+        await CreateServiceClientTable();
 
       await SetupRoles();
     }
@@ -139,6 +145,27 @@ namespace NimbusWatchApi.Database
         CREATE TABLE roles (
         Id INT AUTO_INCREMENT PRIMARY KEY,
         RoleName VARCHAR(255) NOT NULL UNIQUE
+        );
+        """;
+      await cmd.ExecuteNonQueryAsync();
+    }
+
+    private async Task CreateServiceClientTable()
+    {
+      await using var connection = await OpenConnection();
+      await using var cmd = connection.CreateCommand();
+      cmd.CommandText = """
+        CREATE TABLE serviceclients (
+        Id INT AUTO_INCREMENT PRIMARY KEY,
+        ClientId VARCHAR(255) NOT NULL UNIQUE,
+        ClientSecretHash TEXT NOT NULL,
+        RoleId INT NOT NULL,
+        IsActive BOOLEAN NOT NULL,
+        CreatedAt DATETIME NOT NULL,
+        UpdatedAt DATETIME NOT NULL,
+        CONSTRAINT FK_ServiceClients_Roles_RoleId
+          FOREIGN KEY (RoleId) REFERENCES roles(Id)
+          ON DELETE CASCADE
         );
         """;
       await cmd.ExecuteNonQueryAsync();

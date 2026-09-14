@@ -182,7 +182,7 @@ namespace NimbusWatchApi.Database.TableManagers
     {
       return new RefreshTokens
       {
-        ID = Guid.Parse(reader.GetString("ID")),
+        ID = reader.GetGuid("ID"),
         RefreshToken = reader.GetString("RefreshToken"),
         RefreshTokenExpiry = reader.GetDateTime("RefreshTokenExpiry"),
         RefreshTokenIsUsed = reader.GetBoolean("RefreshTokenIsUsed"),

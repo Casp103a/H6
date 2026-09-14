@@ -8,7 +8,7 @@ namespace NimbusWatchApi.Managers
   public interface IUserManager
   {
     Task<bool?> CreateAsync(RegisterUserDto user);
-    Task<bool?> UpdateAsync(UserModel user);
+    Task<bool?> UpdateAsync(UserModel user, bool passwordChanged = false);
     Task<bool?> DeleteAsync(UserModel user);
     Task<List<UserModel>> GetAllUsers(string companyId);
     Task<UserModel?> GetUser(int id);
@@ -63,14 +63,17 @@ namespace NimbusWatchApi.Managers
       }
     }
 
-    public async Task<bool?> UpdateAsync(UserModel? user)
+    public async Task<bool?> UpdateAsync(UserModel? user, bool passwordChanged = false)
     {
       try
       {
-        if (user == null || string.IsNullOrEmpty(user.Email) || string.IsNullOrEmpty(user.Password))
+        if (user == null || string.IsNullOrEmpty(user.Email))
         {
           return null;
         }
+
+        if (passwordChanged)
+          user.Password = passwordService.Encrypt(user.Password);
 
         await databaseManager.Users.UpdateUser(user);
         return true;

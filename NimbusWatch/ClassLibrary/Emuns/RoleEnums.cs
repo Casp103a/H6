@@ -3,6 +3,7 @@
   public enum RoleEnums
   {
     Admin,
-    User
+    User,
+    Service
   }
 }
