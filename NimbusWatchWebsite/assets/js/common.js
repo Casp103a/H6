@@ -73,6 +73,32 @@ window.NW = (function () {
     apply(document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
   }
 
+  // GetAllUsers is [Authorize(Roles = "Admin")] on the API — non-admins get
+  // a 403 from it, so the nav link stays hidden (its default state in the
+  // markup) unless the current user's role resolves to "Admin".
+  function initUsersNavVisibility(user) {
+    var link = document.getElementById("users-nav-link");
+    if (!link || !user) return;
+    NWApi.get("/role").then(function (roles) {
+      var role = (roles || []).find(function (r) { return r.id === user.roleId; });
+      link.hidden = !role || role.name !== "Admin";
+    }).catch(function () { /* leave it hidden if this fails */ });
+  }
+
+  // Populates the header's name label and avatar initials from the
+  // logged-in user's email (GET /api/user/GetCurrentUserInfo, cookie-scoped).
+  function initUserIdentity() {
+    var nameLabel = document.getElementById("user-name-label");
+    var avatarBtn = document.getElementById("avatar-trigger");
+
+    return NWApi.get("/user/GetCurrentUserInfo").then(function (user) {
+      var email = (user && user.email) || "";
+      if (nameLabel) nameLabel.textContent = email.split("@")[0];
+      if (avatarBtn) avatarBtn.textContent = email.slice(0, 2).toUpperCase();
+      initUsersNavVisibility(user);
+    }).catch(function () { /* leave header blank if this fails */ });
+  }
+
   function initAvatarMenu() {
     var trigger = document.getElementById("avatar-trigger");
     if (!trigger) return;
@@ -110,6 +136,7 @@ window.NW = (function () {
       initAvatarMenu();
       initThemeToggle();
       initLogout();
+      initUserIdentity();
     });
   });
 

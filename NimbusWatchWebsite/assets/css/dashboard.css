@@ -171,7 +171,8 @@ button, input { font: inherit; }
 }
 .avatar-menu__trigger:hover { background: oklch(from var(--nf-primary-light) calc(l - 0.03) c h); }
 
-.avatar-menu { position: relative; flex: none; }
+.avatar-menu { position: relative; flex: none; display: flex; align-items: center; gap: 10px; }
+.avatar-menu__name { font-size: 13px; font-weight: 500; color: var(--nf-text); }
 .avatar-menu__panel {
     position: absolute;
     top: calc(100% + 8px);

@@ -1,14 +1,11 @@
 /* ==========================================================================
    Users admin — loads real data from the API: GET /api/user/GetAllUsers
-   returns every user across every company, filtered client-side down to the
-   logged-in user's own company (its id comes from GET /api/company, which
-   is cookie-scoped — no params, always "your own company"). POST
-   /api/user/register adds a new one. A listed user record is whatever the
-   API returns for GET (id, companyId, fullName, email, role, phoneNumber,
-   isActive, createdAt) — there's no department field anywhere in the
-   schema, so it's not shown. Creating one takes email, password, roleId
-   (picked from GET /api/role) and companyId — no fullName/phone at
-   creation time.
+   requires a companyId query param and filters server-side, so the
+   logged-in user's own company id is fetched first (GET /api/company,
+   cookie-scoped — no params, always "your own company") and appended to
+   the request. POST /api/user/register adds a new one. Creating one takes
+   email, password, roleId (picked from GET /api/role) and companyId — no
+   fullName/phone at creation time.
    ========================================================================== */
 (function () {
   "use strict";
@@ -35,6 +32,13 @@
       if (State.users[i].id === id) return State.users[i];
     }
     return null;
+  }
+
+  function getRoleName(roleId) {
+    for (var i = 0; i < State.roles.length; i++) {
+      if (State.roles[i].id === roleId) return State.roles[i].name;
+    }
+    return "—";
   }
 
   function formatDate(iso) {
@@ -84,12 +88,17 @@
 
   function loadUsers() {
     setListStatus("Indlæser brugere…");
-    return Promise.all([
-      NWApi.get("/user/GetAllUsers"),
-      loadCurrentCompany()
-    ]).then(function (results) {
+    return loadCurrentCompany().then(function () {
+      return Promise.all([
+        NWApi.get("/user/GetAllUsers?companyId=" + encodeURIComponent(State.companyId)),
+        State.roles.length ? Promise.resolve() : loadRoles()
+      ]);
+    }).then(function (results) {
       var users = results[0] || [];
-      State.users = users.filter(function (u) { return u.companyId === State.companyId; });
+      State.users = users.map(function (u) {
+        u.role = getRoleName(u.roleId);
+        return u;
+      });
       setListStatus(State.users.length ? null : "Ingen brugere endnu.");
       renderList();
     }).catch(function (err) {
