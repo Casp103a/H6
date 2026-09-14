@@ -14,7 +14,7 @@
 window.NWApi = (function () {
   "use strict";
 
-  var BASE_URL = "https://www.nimbus-watch.com/api";
+  var BASE_URL = "https://nimbus-watch.com/api";
   var NO_REFRESH_PREFIXES = ["/token/", "/login/"];
 
   function rawRequest(method, path, body) {
