@@ -99,10 +99,18 @@ window.NW = (function () {
     });
   }
 
+  // Every page that loads common.js is auth-required (login.php/signup.php
+  // don't include it) — bounce to login if there's no valid session.
   document.addEventListener("DOMContentLoaded", function () {
-    initAvatarMenu();
-    initThemeToggle();
-    initLogout();
+    NWApi.ensureSession().then(function (ok) {
+      if (!ok) {
+        window.location.href = "/login.php";
+        return;
+      }
+      initAvatarMenu();
+      initThemeToggle();
+      initLogout();
+    });
   });
 
   return { colors: colors, esc: esc, nf: nf, initials: initials };

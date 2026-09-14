@@ -25,7 +25,7 @@
       }).then(function () {
         return NWApi.get("/company");
       }).then(function (company) {
-        window.location.href = "/" + encodeURIComponent(company.companyName) + "/index.php";
+        window.location.href = "/" + encodeURIComponent(company.name) + "/index.php";
       }).catch(function (err) {
         setError(err.status === 401 ? "Forkert e-mail eller adgangskode." : err.message);
       });
