@@ -37,9 +37,9 @@ $isDashboard = false;
                     <h1 class="grid-view__title">Brugere</h1>
                     <span id="user-count" class="grid-view__count"></span>
                 </div>
-                <button type="button" id="create-user-btn" class="btn btn--primary-soft">
+                <a href="<?= htmlspecialchars(nw_url('user-create.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--primary-soft">
                     <i class="fa-solid fa-plus"></i>Opret bruger
-                </button>
+                </a>
             </div>
             <p id="user-status" class="empty-note">Indlæser brugere…</p>
             <div class="card user-table-card">
@@ -54,59 +54,6 @@ $isDashboard = false;
                 </table>
             </div>
         </section>
-
-        <div id="user-detail-view" class="user-detail" hidden>
-            <button type="button" id="back-to-users" class="back-link"><i class="fa-solid fa-arrow-left"></i>Alle brugere</button>
-
-            <div class="user-identity">
-                <div id="user-avatar" class="avatar user-identity__avatar"></div>
-                <div>
-                    <div class="user-identity__name-row">
-                        <h1 id="user-name" class="host-header__title"></h1>
-                        <span id="user-role-pill" class="status-pill"></span>
-                    </div>
-                    <div id="user-meta" class="host-header__meta"></div>
-                </div>
-            </div>
-
-            <div class="card user-info-card">
-                <div class="disk-stats user-info-grid">
-                    <div>
-                        <div class="disk-stat__label">Status</div>
-                        <span id="user-status-pill" class="state-pill"></span>
-                    </div>
-                    <div>
-                        <div class="disk-stat__label">Oprettet</div>
-                        <div id="user-created" class="disk-stat__value"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="user-create-view" class="user-detail" hidden>
-            <button type="button" id="back-to-users-from-create" class="back-link"><i class="fa-solid fa-arrow-left"></i>Alle brugere</button>
-            <h1 class="host-header__title user-create-title">Opret bruger</h1>
-
-            <form id="create-user-form" class="card user-form">
-                <label class="field">
-                    <span class="field__label">E-mail</span>
-                    <input type="email" name="email" autocomplete="email" required>
-                </label>
-                <label class="field">
-                    <span class="field__label">Adgangskode</span>
-                    <input type="password" name="password" autocomplete="new-password" minlength="8" required>
-                </label>
-                <label class="field">
-                    <span class="field__label">Rolle</span>
-                    <select name="roleId" id="create-user-role" required></select>
-                </label>
-                <p id="create-user-error" class="form-error" hidden></p>
-                <div class="user-form__actions">
-                    <button type="button" id="cancel-create-user" class="btn">Annullér</button>
-                    <button type="submit" class="btn btn--primary-soft">Opret bruger</button>
-                </div>
-            </form>
-        </div>
     </div>
 
     <script src="/assets/js/api.js"></script>
