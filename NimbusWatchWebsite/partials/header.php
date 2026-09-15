@@ -56,9 +56,8 @@ function nw_url(string $page): string
         <span id="user-name-label" class="avatar-menu__name"></span>
         <button type="button" class="avatar avatar-menu__trigger" id="avatar-trigger" aria-haspopup="true" aria-expanded="false"></button>
         <div class="avatar-menu__panel" id="avatar-panel" role="menu" aria-labelledby="avatar-trigger" hidden>
-            <a href="#" class="avatar-menu__item" role="menuitem"><i class="fa-solid fa-user"></i>Profil</a>
+            <a href="<?= htmlspecialchars(nw_url('profile.php'), ENT_QUOTES, 'UTF-8') ?>" class="avatar-menu__item" role="menuitem"><i class="fa-solid fa-user"></i>Profil</a>
             <a href="<?= htmlspecialchars(nw_url('users.php'), ENT_QUOTES, 'UTF-8') ?>" id="users-nav-link" class="avatar-menu__item" role="menuitem" hidden><i class="fa-solid fa-users"></i>Brugere</a>
-            <a href="#" class="avatar-menu__item" role="menuitem"><i class="fa-solid fa-gear"></i>Indstillinger</a>
             <div class="avatar-menu__divider"></div>
             <a href="/login.php" class="avatar-menu__item" role="menuitem"><i class="fa-solid fa-arrow-right-from-bracket"></i>Log ud</a>
         </div>

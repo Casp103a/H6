@@ -1,7 +1,8 @@
 /* ==========================================================================
-   Users admin — list + detail, same list/detail pattern as the fleet
-   overview. Reuses .card, .data-table, .status-pill, .back-link etc.
-   from dashboard.css rather than redefining them.
+   Users admin — shared across users.php (list), user-create.php,
+   user-detail.php and profile.php, same list/detail pattern as the fleet
+   overview. Reuses .card, .data-table, .status-pill, .back-link etc. from
+   dashboard.css rather than redefining them.
    ========================================================================== */
 
 .user-table-card { overflow: hidden; }
@@ -23,8 +24,8 @@
 
 /* The create form is a standalone task, not part of the left-anchored
    content column the rest of the app uses — center it on the page. */
-#user-create-view { max-width: 480px; margin: 0 auto; }
-.user-create-title { margin: 4px 0 20px; text-align: center; }
+#user-create-view, #user-detail-view, #profile-view { max-width: 480px; margin: 0 auto; }
+.user-create-title, .user-detail-title { margin: 4px 0 20px; text-align: center; }
 
 .user-form { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 .user-form__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }

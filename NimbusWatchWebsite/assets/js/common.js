@@ -41,6 +41,16 @@ window.NW = (function () {
     return String(name).trim().split(/\s+/).map(function (p) { return p.charAt(0); }).join("").slice(0, 2).toUpperCase();
   }
 
+  // Company-scoped pages live at /{companyName}/page.php (see /.htaccess and
+  // partials/header.php's nw_url()) — mirror that here so JS-driven
+  // navigation (e.g. a users-list row linking to its detail page) lands on
+  // the same URL shape as the server-rendered links.
+  function url(page) {
+    var segments = window.location.pathname.split("/").filter(function (s) { return s !== ""; });
+    var companySlug = segments.length >= 2 ? segments[0] : null;
+    return companySlug !== null ? "/" + companySlug + "/" + page : "/" + page;
+  }
+
   function initLogout() {
     var link = document.querySelector('.avatar-menu__item[href="/login.php"]');
     if (!link) return;
@@ -140,5 +150,5 @@ window.NW = (function () {
     });
   });
 
-  return { colors: colors, esc: esc, nf: nf, initials: initials };
+  return { colors: colors, esc: esc, nf: nf, initials: initials, url: url };
 })();
