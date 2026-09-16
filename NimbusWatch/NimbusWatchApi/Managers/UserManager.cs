@@ -1,7 +1,7 @@
 ﻿using ClassLibrary.Dtos;
+using ClassLibrary.Services;
 using NimbusWatchApi.Database;
 using NimbusWatchApi.Models;
-using NimbusWatchApi.Services;
 
 namespace NimbusWatchApi.Managers
 {
@@ -19,12 +19,12 @@ namespace NimbusWatchApi.Managers
   internal class UserManager : IUserManager
   {
     private readonly IDatabaseManager databaseManager;
-    private readonly IPasswordService passwordService;
+    private readonly IEncryptingService encryptionService;
 
-    public UserManager(IDatabaseManager databaseManager, IPasswordService passwordService)
+    public UserManager(IDatabaseManager databaseManager, IEncryptingService encryptionService)
     {
       this.databaseManager = databaseManager;
-      this.passwordService = passwordService;
+      this.encryptionService = encryptionService;
     }
 
     public async Task<bool?> CreateAsync(RegisterUserDto userDto)
@@ -46,7 +46,7 @@ namespace NimbusWatchApi.Managers
         var userModel = new UserModel
         {
           Email = userDto.Email,
-          Password = passwordService.Encrypt(userDto.Password),
+          Password = encryptionService.Encrypt(userDto.Password),
           RoleId = userDto.RoleId,
           IsActive = true,
           CreatedAt = DateTime.UtcNow,
@@ -73,7 +73,7 @@ namespace NimbusWatchApi.Managers
         }
 
         if (passwordChanged)
-          user.Password = passwordService.Encrypt(user.Password);
+          user.Password = encryptionService.Encrypt(user.Password);
 
         await databaseManager.Users.UpdateUser(user);
         return true;
@@ -115,7 +115,7 @@ namespace NimbusWatchApi.Managers
       {
         var user = await databaseManager.Users.GetUser(login.Email);
         if (user == null) return false;
-        return passwordService.Decrypt(user.Password) == password;
+        return encryptionService.Decrypt(user.Password) == password;
       }
       catch (Exception ex)
       {

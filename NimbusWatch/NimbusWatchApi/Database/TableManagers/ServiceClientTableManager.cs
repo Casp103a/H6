@@ -9,6 +9,7 @@ namespace NimbusWatchApi.Database.TableManagers
     Task<bool> UpdateServiceClient(ServiceClientModel client);
     Task<bool> DeleteServiceClient(int id);
     Task<List<ServiceClientModel>> GetAllServiceClients();
+    Task<ServiceClientModel?> GetServiceClientByClientId(Guid clientId);
     Task<ServiceClientModel?> GetServiceClientByClientId(string clientId);
   }
 
@@ -24,12 +25,14 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = """
-        INSERT INTO serviceclients (ClientId, ClientSecretHash, RoleId, IsActive, CreatedAt, UpdatedAt)
-        VALUES (@ClientId, @ClientSecretHash, @RoleId, @IsActive, @CreatedAt, @UpdatedAt);
+        INSERT INTO serviceclients (ClientId, ClientSecretHash, ServerName, IpAddress, RoleId, IsActive, CreatedAt, UpdatedAt)
+        VALUES (@ClientId, @ClientSecretHash, @ServerName, @IpAddress, @RoleId, @IsActive, @CreatedAt, @UpdatedAt);
         """;
 
-      cmd.Parameters.AddWithValue("@ClientId", client.ClientId);
+      cmd.Parameters.AddWithValue("@ClientId", client.ClientId.ToString());
       cmd.Parameters.AddWithValue("@ClientSecretHash", client.ClientSecretHash);
+      cmd.Parameters.AddWithValue("@ServerName", client.ServerName);
+      cmd.Parameters.AddWithValue("@IpAddress", client.IpAddress);
       cmd.Parameters.AddWithValue("@RoleId", client.RoleId);
       cmd.Parameters.AddWithValue("@IsActive", client.IsActive);
       cmd.Parameters.AddWithValue("@CreatedAt", client.CreatedAt);
@@ -46,6 +49,8 @@ namespace NimbusWatchApi.Database.TableManagers
       cmd.CommandText = """
         UPDATE serviceclients
         SET ClientSecretHash = @ClientSecretHash,
+            ServerName = @ServerName,
+            IpAddress = @IpAddress,
             RoleId = @RoleId,
             IsActive = @IsActive,
             UpdatedAt = @UpdatedAt
@@ -54,6 +59,8 @@ namespace NimbusWatchApi.Database.TableManagers
 
       cmd.Parameters.AddWithValue("@Id", client.Id);
       cmd.Parameters.AddWithValue("@ClientSecretHash", client.ClientSecretHash);
+      cmd.Parameters.AddWithValue("@ServerName", client.ServerName);
+      cmd.Parameters.AddWithValue("@IpAddress", client.IpAddress);
       cmd.Parameters.AddWithValue("@RoleId", client.RoleId);
       cmd.Parameters.AddWithValue("@IsActive", client.IsActive);
       cmd.Parameters.AddWithValue("@UpdatedAt", client.UpdatedAt);
@@ -84,7 +91,7 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = """
-        SELECT Id, ClientId, ClientSecretHash, RoleId, IsActive, CreatedAt, UpdatedAt
+        SELECT Id, ClientId, ClientSecretHash, ServerName, IpAddress, RoleId, IsActive, CreatedAt, UpdatedAt
         FROM serviceclients;
         """;
 
@@ -98,19 +105,27 @@ namespace NimbusWatchApi.Database.TableManagers
       return clients;
     }
 
-    public async Task<ServiceClientModel?> GetServiceClientByClientId(string clientId)
+    public Task<ServiceClientModel?> GetServiceClientByClientId(string clientId)
+    {
+      if (!Guid.TryParse(clientId, out var parsedClientId))
+        return Task.FromResult<ServiceClientModel?>(null);
+
+      return GetServiceClientByClientId(parsedClientId);
+    }
+
+    public async Task<ServiceClientModel?> GetServiceClientByClientId(Guid clientId)
     {
       await using var connection = await OpenConnection();
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = """
-        SELECT Id, ClientId, ClientSecretHash, RoleId, IsActive, CreatedAt, UpdatedAt
+        SELECT Id, ClientId, ClientSecretHash, ServerName, IpAddress, RoleId, IsActive, CreatedAt, UpdatedAt
         FROM serviceclients
         WHERE ClientId = @ClientId
         LIMIT 1;
         """;
 
-      cmd.Parameters.AddWithValue("@ClientId", clientId);
+      cmd.Parameters.AddWithValue("@ClientId", clientId.ToString());
 
       await using var reader = await cmd.ExecuteReaderAsync();
 
@@ -127,8 +142,10 @@ namespace NimbusWatchApi.Database.TableManagers
       return new ServiceClientModel
       {
         Id = reader.GetInt32("Id"),
-        ClientId = reader.GetString("ClientId"),
+        ClientId = reader.GetGuid("ClientId"),
         ClientSecretHash = reader.GetString("ClientSecretHash"),
+        ServerName = reader.GetString("ServerName"),
+        IpAddress = reader.GetString("IpAddress"),
         RoleId = reader.GetInt32("RoleId"),
         IsActive = reader.GetBoolean("IsActive"),
         CreatedAt = reader.GetDateTime("CreatedAt"),

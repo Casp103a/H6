@@ -1,5 +1,5 @@
 ﻿using System.Diagnostics;
-using System.Management;
+using System.Runtime.InteropServices;
 
 namespace ServerService.Logic
 {
@@ -11,8 +11,23 @@ namespace ServerService.Logic
     (long RemainingDisk, long totalDisk) ReadDiskUsage();
   }
 
-  internal class HardwareReader : IHardwareReader
+  public partial class HardwareReader : IHardwareReader
   {
+    private readonly PerformanceCounter? cpuCounter;
+
+    public HardwareReader()
+    {
+      try
+      {
+        cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total", readOnly: true);
+        cpuCounter.NextValue(); // prime; first sample is always 0
+      }
+      catch (Exception)
+      {
+        cpuCounter = null; // category missing or access denied
+      }
+    }
+
     public double ReadCpuTemperature()
     {
       var cpuTemperature = new PerformanceCounter("Thermal Zone Information", "Temperature", @"\_TZ.THRM");
@@ -29,36 +44,53 @@ namespace ServerService.Logic
 
     public double ReadCpuUsage()
     {
-      var cpuUsage = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-      var cpuUsageValue = cpuUsage.NextValue();
-
-      if (cpuUsageValue == 0)
+      if (cpuCounter is null)
       {
-        Thread.Sleep(1000); // Wait a second to get a valid reading
-        cpuUsageValue = cpuUsage.NextValue();
+        return 0;
       }
 
-      return cpuUsageValue;
+      try
+      {
+        return cpuCounter.NextValue();
+      }
+      catch (Exception)
+      {
+        return 0;
+      }
     }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    private struct MEMORYSTATUSEX
+    {
+      public uint dwLength;
+      public uint dwMemoryLoad;
+      public ulong ullTotalPhys;
+      public ulong ullAvailPhys;
+      public ulong ullTotalPageFile;
+      public ulong ullAvailPageFile;
+      public ulong ullTotalVirtual;
+      public ulong ullAvailVirtual;
+      public ulong ullAvailExtendedVirtual;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
 
     public (double useRam, double totalRam) ReadMemoryUsage()
     {
-      // Implementation to read memory usage
+      var status = new MEMORYSTATUSEX();
+      status.dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>();
 
-      using (var searcher = new ManagementObjectSearcher("SELECT TotalVisibleMemorySize, FreePhysicalMemory FROM Win32_OperatingSystem"))
+      if (!GlobalMemoryStatusEx(ref status))
       {
-        foreach (var obj in searcher.Get())
-        {
-          // Values are in KB
-          ulong totalMB = (ulong)obj["TotalVisibleMemorySize"] / 1024;
-          ulong freeMB = (ulong)obj["FreePhysicalMemory"] / 1024;
-          ulong usedMB = totalMB - freeMB;
-          //float percent = (float)usedMB / totalMB * 100;
-
-          return (usedMB, totalMB);
-        }
+        return (0, 0);
       }
-      return (0, 0);
+
+      double totalMB = status.ullTotalPhys / (1024d * 1024d);
+      double freeMB = status.ullAvailPhys / (1024d * 1024d);
+
+      return (totalMB - freeMB, totalMB);
     }
 
     public (long RemainingDisk, long totalDisk) ReadDiskUsage()

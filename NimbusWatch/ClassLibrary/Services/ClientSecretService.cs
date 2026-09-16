@@ -1,11 +1,12 @@
 ﻿using System.Security.Cryptography;
 
-namespace NimbusWatchApi.Services
+namespace ClassLibrary.Services
 {
   public interface IClientSecretService
   {
     string HashSecret(string secret);
     bool VerifySecret(string secret, string storedHash);
+    string GenerateSecureClientSecret();
   }
 
   public class ClientSecretService : IClientSecretService
@@ -42,6 +43,12 @@ namespace NimbusWatchApi.Services
       var actualHash = pbkdf2.GetBytes(expectedHash.Length);
 
       return CryptographicOperations.FixedTimeEquals(actualHash, expectedHash);
+    }
+
+    public string GenerateSecureClientSecret()
+    {
+      // 32 random bytes, URL-safe; return to caller ONCE, store only the hash
+      return Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
     }
   }
 }

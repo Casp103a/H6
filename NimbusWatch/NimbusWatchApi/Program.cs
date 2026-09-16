@@ -1,3 +1,4 @@
+using ClassLibrary.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
@@ -95,11 +96,12 @@ namespace NimbusWatchApi
 
       builder.Services.AddScoped<IUserManager, UserManager>();
       builder.Services.AddScoped<IRefreshTokenManager, RefreshTokenManager>();
-      builder.Services.AddScoped<IPasswordService, PasswordService>();
+      builder.Services.AddScoped<IEncryptingService, EncryptingService>();
       builder.Services.AddScoped<ITokenService, TokenService>();
       builder.Services.AddScoped<ICompanyManager, CompanyManager>();
       builder.Services.AddScoped<IRoleManager, RoleManager>();
       builder.Services.AddScoped<IServiceClientManager, ServiceClientManager>();
+      builder.Services.AddScoped<ICompanyHardwareDataManager, CompanyHardwareDataManager>();
       builder.Services.AddSingleton<IClientSecretService, ClientSecretService>();
 
       var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")

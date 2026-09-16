@@ -1,4 +1,5 @@
 using ClassLibrary.Services;
+using Microsoft.Extensions.Logging.EventLog;
 using ServerService.Logic;
 
 namespace ServerService
@@ -9,8 +10,21 @@ namespace ServerService
     {
       var builder = Host.CreateApplicationBuilder(args);
 
+      // Run as a Windows Service (no-op when started from console/debugger)
+      builder.Services.AddWindowsService(options =>
+      {
+        options.ServiceName = "NimbusWatch";
+      });
+
+      // Write logs to the Windows Event Log under the "NimbusWatch" source
+      builder.Services.Configure<EventLogSettings>(settings =>
+      {
+        settings.SourceName = "NimbusWatch";
+        settings.LogName = "Application";
+      });
+
       builder.Services.AddSingleton<IConfigReader, ConfigReader>();
-      builder.Services.AddScoped<IHardwareReader, HardwareReader>();
+      builder.Services.AddSingleton<IHardwareReader, HardwareReader>();
       builder.Services.AddSingleton<ITokenProvider, TokenProvider>();
       builder.Services.AddTransient<AuthHeaderHandler>();
       builder.Services.AddHostedService<Worker>();
@@ -29,6 +43,10 @@ namespace ServerService
           client.BaseAddress = new Uri(config.ApiBaseUrl);
         })
         .AddHttpMessageHandler<AuthHeaderHandler>();
+
+      using var stream = typeof(Program).Assembly
+        .GetManifestResourceStream("ServerService.appsettings.json")!;
+      builder.Configuration.AddJsonStream(stream);
 
       var host = builder.Build();
       host.Run();

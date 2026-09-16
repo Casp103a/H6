@@ -1,4 +1,6 @@
+using ClassLibrary.Dtos;
 using ServerService.Logic;
+using System.Text.Json;
 
 namespace ServerService
 {
@@ -21,13 +23,40 @@ namespace ServerService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-      while (!stoppingToken.IsCancellationRequested)
+      logger.LogInformation("NimbusWatch service started at {time}", DateTimeOffset.Now);
+
+      try
       {
-        if (logger.IsEnabled(LogLevel.Information))
+        while (!stoppingToken.IsCancellationRequested)
         {
-          logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
+          try
+          {
+            await ReadLogic(stoppingToken);
+          }
+          catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+          {
+            break;
+          }
+          catch (Exception ex)
+          {
+            logger.LogError(ex, "Failed to collect or report hardware readings");
+          }
+
+          await Task.Delay(1000, stoppingToken);
         }
-        await Task.Delay(1000, stoppingToken);
+      }
+      catch (OperationCanceledException)
+      {
+        // normal shutdown
+      }
+      catch (Exception ex)
+      {
+        logger.LogError(ex, "NimbusWatch service failed unexpectedly");
+        throw;
+      }
+      finally
+      {
+        logger.LogInformation("NimbusWatch service stopping at {time}", DateTimeOffset.Now);
       }
     }
 
@@ -43,18 +72,36 @@ namespace ServerService
 
     }
 
-    private Task ReportReadings()
+    private async Task ReportReadings()
     {
       var cpuUsage = hardwareReader.ReadCpuUsage();
-      var cpuTemperature = hardwareReader.ReadCpuTemperature();
+      //var cpuTemperature = hardwareReader.ReadCpuTemperature();
       var memoryUsage = hardwareReader.ReadMemoryUsage();
       var diskUsage = hardwareReader.ReadDiskUsage();
       var serverName = configReader.Configuration.ServerName;
       var companyId = configReader.Configuration.CompanyId;
 
-      //httpClient.PostAsync();
+      var serviceDto = new CompanyHardwareDataDto
+      {
+        CpuUsages = (int)cpuUsage,
+        CompanyId = companyId.ToString(),
+        RamUsage = memoryUsage.useRam,
+        RamTotal = memoryUsage.totalRam,
+        DiskRemainingSpace = diskUsage.RemainingDisk,
+        DiskTotalSpace = diskUsage.totalDisk,
+        ServiceId = 2, // need to get the id from the token or config
+      };
 
-      return Task.CompletedTask;
+      var json = JsonSerializer.Serialize(serviceDto, AppJsonSerializerContext.Default.CompanyHardwareDataDto);
+
+      var response = await httpClient.PostAsync($"api/CompanyHardwareData/Add/{companyId}", new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+
+      if (!response.IsSuccessStatusCode)
+      {
+        logger.LogError("Failed to report hardware data: {statusCode}", response.StatusCode);
+      }
+
+      return;
     }
   }
 }

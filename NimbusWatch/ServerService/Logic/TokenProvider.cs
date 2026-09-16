@@ -1,13 +1,14 @@
 ﻿using ClassLibrary.Dtos;
 using ClassLibrary.Services;
-using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 
 namespace ServerService.Logic
 {
   internal sealed class TokenProvider : ITokenProvider
   {
     private readonly IConfigReader configReader;
-    private readonly IHttpClientFactory httpClientFactory;
+    private readonly HttpClient httpClient;
     private readonly ILogger<TokenProvider> logger;
     private readonly SemaphoreSlim refreshLock = new(1, 1);
 
@@ -16,11 +17,11 @@ namespace ServerService.Logic
 
     public TokenProvider(
       IConfigReader configReader,
-      IHttpClientFactory httpClientFactory,
+      IHttpClientFactory factory,
       ILogger<TokenProvider> logger)
     {
       this.configReader = configReader;
-      this.httpClientFactory = httpClientFactory;
+      this.httpClient = factory.CreateClient("TokenClient");
       this.logger = logger;
     }
 
@@ -69,8 +70,6 @@ namespace ServerService.Logic
       if (string.IsNullOrWhiteSpace(config.ClientSecret))
         throw new InvalidOperationException("Missing ClientSecret in config.json.");
 
-      var client = httpClientFactory.CreateClient("TokenClient");
-
       var request = new ServiceTokenRequestDto
       {
         GrantType = "client_credentials",
@@ -78,9 +77,15 @@ namespace ServerService.Logic
         ClientSecret = config.ClientSecret
       };
 
-      using var response = await client.PostAsJsonAsync(
-        config.ServiceTokenPath,
+      var json = JsonSerializer.Serialize(
         request,
+        AppJsonSerializerContext.Default.ServiceTokenRequestDto);
+
+      using var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+      using var response = await httpClient.PostAsync(
+        config.ServiceTokenPath,
+        content,
         cancellationToken);
 
       if (!response.IsSuccessStatusCode)
@@ -90,7 +95,11 @@ namespace ServerService.Logic
         throw new HttpRequestException($"Unable to fetch service token. Status code: {response.StatusCode}");
       }
 
-      var tokenResponse = await response.Content.ReadFromJsonAsync<ServiceTokenResponseDto>(cancellationToken: cancellationToken);
+      var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+      var tokenResponse = JsonSerializer.Deserialize(
+        body,
+        AppJsonSerializerContext.Default.ServiceTokenResponseDto);
 
       if (tokenResponse == null || string.IsNullOrWhiteSpace(tokenResponse.AccessToken))
         throw new InvalidOperationException("Token endpoint returned an invalid response.");

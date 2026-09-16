@@ -1,4 +1,5 @@
 ﻿using ClassLibrary.Dtos;
+using ClassLibrary.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NimbusWatchApi.Managers;
@@ -29,7 +30,7 @@ namespace NimbusWatchApi.Controllers
 
     [AllowAnonymous]
     [HttpPost("token")]
-    public async Task<ActionResult<ServiceTokenResponseDto>> Token([FromBody] ServiceTokenRequestDto request)
+    public async Task<IActionResult> Token([FromBody] ServiceTokenRequestDto request)
     {
       if (!ModelState.IsValid)
         return BadRequest(ModelState);

@@ -11,7 +11,7 @@ namespace NimbusWatchApi.Services
   public interface ITokenService
   {
     string CreateToken(UserModel user, out Guid id);
-    string CreateServiceToken(string clientId, int role);
+    string CreateServiceToken(Guid clientId, int role);
     string CreateRefreshToken();
     string HashRefreshToken(string refreshToken);
     ClaimsPrincipal ValidateToken(string token);
@@ -66,18 +66,20 @@ namespace NimbusWatchApi.Services
       return WriteToken(claims, DateTime.UtcNow.AddMinutes(15));
     }
 
-    public string CreateServiceToken(string clientId, int role)
+    public string CreateServiceToken(Guid clientId, int role)
     {
       var roleDto = roleManager.GetRole(role).GetAwaiter().GetResult();
 
       if (roleDto == null)
         return string.Empty;
 
+      var clientIdValue = clientId.ToString();
+
       var claims = new List<Claim>
       {
-        new Claim(JwtRegisteredClaimNames.Sub, clientId),
-        new Claim(ClaimTypes.Name, clientId),
-        new Claim("client_id", clientId),
+        new Claim(JwtRegisteredClaimNames.Sub, clientIdValue),
+        new Claim(ClaimTypes.Name, clientIdValue),
+        new Claim("client_id", clientIdValue),
         new Claim(ClaimTypes.Role, roleDto.Name),
         new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
       };

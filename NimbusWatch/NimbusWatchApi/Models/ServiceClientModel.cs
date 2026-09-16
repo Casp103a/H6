@@ -10,13 +10,19 @@ namespace NimbusWatchApi.Models
     public int Id { get; set; }
 
     [Required]
-    public string ClientId { get; set; } = string.Empty;
+    public Guid ClientId { get; set; }
 
     [Required]
     public string ClientSecretHash { get; set; } = string.Empty;
 
     [Required]
     public int RoleId { get; set; } = (int)RoleEnums.Service;
+
+    [Required]
+    public string ServerName { get; set; }
+
+    [Required]
+    public string IpAddress { get; set; }
 
     [Required]
     public bool IsActive { get; set; }
