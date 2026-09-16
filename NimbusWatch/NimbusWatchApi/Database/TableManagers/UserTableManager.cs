@@ -162,7 +162,7 @@ namespace NimbusWatchApi.Database.TableManagers
         RoleId = reader.GetInt32("RoleId"),
         IsActive = reader.GetBoolean("IsActive"),
         CreatedAt = reader.GetDateTime("CreatedAt"),
-        CompanyId = reader.GetString("CompanyId")
+        CompanyId = reader.GetGuid("CompanyId").ToString(),
       };
     }
   }

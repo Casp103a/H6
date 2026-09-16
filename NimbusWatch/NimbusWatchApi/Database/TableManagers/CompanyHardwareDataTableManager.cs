@@ -66,7 +66,7 @@ namespace NimbusWatchApi.Database.TableManagers
       return new CompanyHardwareData
       {
         Id = reader.GetInt32("Id"),
-        CompanyId = reader.GetString("CompanyId"),
+        CompanyId = reader.GetGuid("CompanyId").ToString(),
         ServiceId = reader.GetInt32("ServiceId"),
         CpuUsages = reader.GetInt32("CpuUsages"),
         DiskTotalSpace = reader.GetDouble("DiskTotalSpace"),
