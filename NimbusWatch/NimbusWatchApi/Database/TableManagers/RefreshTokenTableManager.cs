@@ -11,6 +11,7 @@ namespace NimbusWatchApi.Database.TableManagers
     Task<List<RefreshTokens>> GetAllRefreshTokens();
     Task<RefreshTokens?> GetRefreshToken(Guid tokenId, int userId);
     Task<bool> RotateRefreshToken(Guid usedTokenId, int userId, string expectedRefreshTokenHash, RefreshTokens newRefreshToken);
+    Task<int> RevokeAllForUser(int userId);
   }
 
   public class RefreshTokenTableManager : TableManager, IRefreshTokenTableManager
@@ -176,6 +177,24 @@ namespace NimbusWatchApi.Database.TableManagers
         await transaction.RollbackAsync();
         return false;
       }
+    }
+
+    public async Task<int> RevokeAllForUser(int userId)
+    {
+      await using var connection = await OpenConnection();
+      await using var cmd = connection.CreateCommand();
+
+      cmd.CommandText = """
+        UPDATE refreshtokens
+        SET RefreshTokenIsUsed = TRUE
+        WHERE UserId = @UserId
+          AND RefreshTokenIsUsed = FALSE;
+        """;
+
+      cmd.Parameters.AddWithValue("@UserId", userId);
+
+      // Returns the number of sessions that were revoked (0 is a valid result).
+      return await cmd.ExecuteNonQueryAsync();
     }
 
     private static RefreshTokens MapRefreshToken(MySqlDataReader reader)

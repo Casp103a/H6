@@ -82,6 +82,11 @@ namespace NimbusWatchApi.Controllers
 
     private async Task<string?> CreateAndStoreRefreshToken(UserModel user, Guid accessTokenId)
     {
+      // Single-session-per-user: kill any sessions that are still alive
+      // before issuing the new one.
+      var revoked = await refreshTokenManager.RevokeAllForUser(user);
+      if (!revoked) return null;
+
       var rawRefreshToken = tokenService.CreateRefreshToken();
       var refreshTokenHash = tokenService.HashRefreshToken(rawRefreshToken);
 
