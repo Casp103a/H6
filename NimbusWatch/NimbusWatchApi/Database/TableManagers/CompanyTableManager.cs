@@ -11,6 +11,7 @@ namespace NimbusWatchApi.Database.TableManagers
     bool DeleteCompany(string companyId);
     bool UpdateCompany(string companyId, CompanyModel updatedCompany);
     Task<CompanyModel?> GetCompany(string companyId);
+    Task<List<CompanyModel>> GetAllCompanies();
   }
 
   public class CompanyTableManager : TableManager, ICompanyTableManager
@@ -80,6 +81,21 @@ namespace NimbusWatchApi.Database.TableManagers
       {
         return null;
       }
+    }
+
+    public async Task<List<CompanyModel>> GetAllCompanies()
+    {
+      var companies = new List<CompanyModel>();
+
+      await using var connection = await OpenConnection();
+      await using var cmd = connection.CreateCommand();
+      cmd.CommandText = "SELECT Id, Name FROM companys;";
+
+      await using var reader = await cmd.ExecuteReaderAsync();
+      while (await reader.ReadAsync())
+        companies.Add(MapCompany(reader));
+
+      return companies;
     }
 
     private CompanyModel MapCompany(MySqlDataReader reader)

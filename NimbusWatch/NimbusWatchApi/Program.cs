@@ -104,6 +104,8 @@ namespace NimbusWatchApi
       builder.Services.AddScoped<ICompanyHardwareDataManager, CompanyHardwareDataManager>();
       builder.Services.AddSingleton<IClientSecretService, ClientSecretService>();
 
+      builder.Services.AddHostedService<DatabaseInitializerHostedService>();
+
       var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");
 

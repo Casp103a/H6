@@ -24,7 +24,7 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = """
-        INSERT INTO roles (RoleName)
+        INSERT IGNORE INTO roles (RoleName)
         VALUES (@RoleName);
         """;
       cmd.Parameters.AddWithValue("@RoleName", roleName);

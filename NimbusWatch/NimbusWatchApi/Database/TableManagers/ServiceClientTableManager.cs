@@ -5,12 +5,12 @@ namespace NimbusWatchApi.Database.TableManagers
 {
   public interface IServiceClientTableManager
   {
-    Task<bool> AddServiceClient(ServiceClientModel client);
-    Task<bool> UpdateServiceClient(ServiceClientModel client);
-    Task<bool> DeleteServiceClient(int id);
-    Task<List<ServiceClientModel>> GetAllServiceClients();
-    Task<ServiceClientModel?> GetServiceClientByClientId(Guid clientId);
-    Task<ServiceClientModel?> GetServiceClientByClientId(string clientId);
+    Task<bool> AddServiceClient(string companyId, ServiceClientModel client);
+    Task<bool> UpdateServiceClient(string companyId, ServiceClientModel client);
+    Task<bool> DeleteServiceClient(string companyId, int id);
+    Task<List<ServiceClientModel>> GetAllServiceClients(string companyId);
+    Task<ServiceClientModel?> GetServiceClientByClientId(string companyId, Guid clientId);
+    Task<ServiceClientModel?> GetServiceClientByClientId(string companyId, string clientId);
   }
 
   public class ServiceClientTableManager : TableManager, IServiceClientTableManager
@@ -19,13 +19,15 @@ namespace NimbusWatchApi.Database.TableManagers
     {
     }
 
-    public async Task<bool> AddServiceClient(ServiceClientModel client)
+    public async Task<bool> AddServiceClient(string companyId, ServiceClientModel client)
     {
+      var table = CompanyTableNames.ServiceClients(companyId);
+
       await using var connection = await OpenConnection();
       await using var cmd = connection.CreateCommand();
 
-      cmd.CommandText = """
-        INSERT INTO serviceclients (ClientId, ClientSecretHash, ServerName, IpAddress, RoleId, IsActive, CreatedAt, UpdatedAt)
+      cmd.CommandText = $"""
+        INSERT INTO `{table}` (ClientId, ClientSecretHash, ServerName, IpAddress, RoleId, IsActive, CreatedAt, UpdatedAt)
         VALUES (@ClientId, @ClientSecretHash, @ServerName, @IpAddress, @RoleId, @IsActive, @CreatedAt, @UpdatedAt);
         """;
 
@@ -41,13 +43,15 @@ namespace NimbusWatchApi.Database.TableManagers
       return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
-    public async Task<bool> UpdateServiceClient(ServiceClientModel client)
+    public async Task<bool> UpdateServiceClient(string companyId, ServiceClientModel client)
     {
+      var table = CompanyTableNames.ServiceClients(companyId);
+
       await using var connection = await OpenConnection();
       await using var cmd = connection.CreateCommand();
 
-      cmd.CommandText = """
-        UPDATE serviceclients
+      cmd.CommandText = $"""
+        UPDATE `{table}`
         SET ClientSecretHash = @ClientSecretHash,
             ServerName = @ServerName,
             IpAddress = @IpAddress,
@@ -68,59 +72,57 @@ namespace NimbusWatchApi.Database.TableManagers
       return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
-    public async Task<bool> DeleteServiceClient(int id)
+    public async Task<bool> DeleteServiceClient(string companyId, int id)
     {
+      var table = CompanyTableNames.ServiceClients(companyId);
+
       await using var connection = await OpenConnection();
       await using var cmd = connection.CreateCommand();
 
-      cmd.CommandText = """
-        DELETE FROM serviceclients
-        WHERE Id = @Id;
-        """;
-
+      cmd.CommandText = $"DELETE FROM `{table}` WHERE Id = @Id;";
       cmd.Parameters.AddWithValue("@Id", id);
 
       return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
-    public async Task<List<ServiceClientModel>> GetAllServiceClients()
+    public async Task<List<ServiceClientModel>> GetAllServiceClients(string companyId)
     {
+      var table = CompanyTableNames.ServiceClients(companyId);
       var clients = new List<ServiceClientModel>();
 
       await using var connection = await OpenConnection();
       await using var cmd = connection.CreateCommand();
 
-      cmd.CommandText = """
+      cmd.CommandText = $"""
         SELECT Id, ClientId, ClientSecretHash, ServerName, IpAddress, RoleId, IsActive, CreatedAt, UpdatedAt
-        FROM serviceclients;
+        FROM `{table}`;
         """;
 
       await using var reader = await cmd.ExecuteReaderAsync();
-
       while (await reader.ReadAsync())
-      {
         clients.Add(MapClient(reader));
-      }
 
       return clients;
     }
 
-    public Task<ServiceClientModel?> GetServiceClientByClientId(string clientId)
+    public Task<ServiceClientModel?> GetServiceClientByClientId(string companyId, string clientId)
     {
       if (!Guid.TryParse(clientId, out var parsedClientId))
         return Task.FromResult<ServiceClientModel?>(null);
 
-      return GetServiceClientByClientId(parsedClientId);
+      return GetServiceClientByClientId(companyId, parsedClientId);
     }
 
-    public async Task<ServiceClientModel?> GetServiceClientByClientId(Guid clientId)
+    public async Task<ServiceClientModel?> GetServiceClientByClientId(string companyId, Guid clientId)
     {
+      var table = CompanyTableNames.ServiceClients(companyId);
+
       await using var connection = await OpenConnection();
       await using var cmd = connection.CreateCommand();
 
-      cmd.CommandText = """
+      cmd.CommandText = $"""
         SELECT Id, ClientId, ClientSecretHash, ServerName, IpAddress, RoleId, IsActive, CreatedAt, UpdatedAt
-        FROM serviceclients
+        FROM `{table}`
         WHERE ClientId = @ClientId
         LIMIT 1;
         """;
@@ -128,13 +130,7 @@ namespace NimbusWatchApi.Database.TableManagers
       cmd.Parameters.AddWithValue("@ClientId", clientId.ToString());
 
       await using var reader = await cmd.ExecuteReaderAsync();
-
-      if (await reader.ReadAsync())
-      {
-        return MapClient(reader);
-      }
-
-      return null;
+      return await reader.ReadAsync() ? MapClient(reader) : null;
     }
 
     private static ServiceClientModel MapClient(MySqlDataReader reader)

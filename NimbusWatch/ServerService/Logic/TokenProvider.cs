@@ -84,7 +84,7 @@ namespace ServerService.Logic
       using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
       using var response = await httpClient.PostAsync(
-        config.ServiceTokenPath,
+        $"{config.ServiceTokenPath}/{config.CompanyId}",
         content,
         cancellationToken);
 

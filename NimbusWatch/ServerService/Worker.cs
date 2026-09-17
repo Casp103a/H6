@@ -89,7 +89,7 @@ namespace ServerService
         RamTotal = memoryUsage.totalRam,
         DiskRemainingSpace = diskUsage.RemainingDisk,
         DiskTotalSpace = diskUsage.totalDisk,
-        ServiceId = 2, // need to get the id from the token or config
+        ServiceId = 1, // need to get the id from the token or config
       };
 
       var json = JsonSerializer.Serialize(serviceDto, AppJsonSerializerContext.Default.CompanyHardwareDataDto);
