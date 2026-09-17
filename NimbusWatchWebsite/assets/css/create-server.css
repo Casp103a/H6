@@ -1,0 +1,20 @@
+/* ==========================================================================
+   Create-server form — standalone task page, not part of the left-anchored
+   content column the rest of the app uses, so it's centered like the user
+   create view. Reuses .card, .field, .form-error, .back-link, .btn from
+   dashboard.css rather than redefining them.
+   ========================================================================== */
+
+.create-server { padding: 24px 28px 40px; max-width: 480px; margin: 0 auto; }
+.create-server__title { margin: 4px 0 20px; text-align: center; }
+
+.create-server__form { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.create-server__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+@media (max-width: 900px) {
+    .create-server { padding: 16px 16px 32px; max-width: none; }
+}
+
+@media (max-width: 480px) {
+    .create-server__form { padding: 16px; }
+}

@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 $brandName = 'Nimbus Watch';
 $pageTitle = 'Serverovervågning';
-// Servers are loaded client-side from GET /api/company/servers by
-// assets/js/dashboard.js. No fake/local data.
+// Servers are loaded client-side from GET /api/CompanyHardwareData/GetAll/{companyId}
+// by assets/js/dashboard.js. No fake/local data.
 ?>
 <!DOCTYPE html>
 <html lang="da">
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=1440">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="/assets/js/theme-init.js"></script>
     <title><?= htmlspecialchars($brandName . ' – ' . $pageTitle, ENT_QUOTES, 'UTF-8') ?></title>
     <link rel="icon" href="/assets/img/nimbus-mark.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
@@ -34,6 +34,7 @@ $pageTitle = 'Serverovervågning';
                 <div>
                     <h1 class="grid-view__title">Servere</h1>
                     <span id="fleet-count-grid" class="grid-view__count"></span>
+                    <a href="<?= htmlspecialchars(nw_url('create-server.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--primary-soft">Tilføj server</a>
                 </div>
                 <div id="fleet-tally-grid" class="fleet-tally fleet-tally--grid"></div>
             </div>
@@ -63,10 +64,6 @@ $pageTitle = 'Serverovervågning';
                         </div>
                         <div id="host-meta" class="host-header__meta"></div>
                     </div>
-                    <div class="host-header__actions">
-                        <button type="button" class="btn">Eksportér rapport</button>
-                        <button type="button" class="btn btn--primary-soft">Konfigurér grænser</button>
-                    </div>
                 </div>
 
                 <div id="alert-banner" class="alert-banner" hidden>
@@ -75,10 +72,37 @@ $pageTitle = 'Serverovervågning';
                         <div id="alert-title" class="alert-banner__title"></div>
                         <div id="alert-body" class="alert-banner__text"></div>
                     </div>
-                    <a href="#" class="alert-banner__link">Se hændelseslog</a>
                 </div>
 
                 <div id="gauge-list" class="gauges"></div>
+
+                <div class="card trend-card">
+                    <div class="trend-card__head">
+                        <div>
+                            <div class="trend-card__title">Udvikling · seneste målinger</div>
+                            <div id="trend-legend" class="trend-legend"></div>
+                        </div>
+                        <button type="button" id="trend-table-toggle" class="back-link" style="margin-bottom:0">Vis som tabel</button>
+                    </div>
+                    <div id="trend-chart-wrap" class="trend-chart-wrap">
+                        <div id="trend-chart" class="trend-chart"></div>
+                        <div id="trend-tooltip" class="trend-tooltip" hidden></div>
+                    </div>
+                    <div id="trend-table-wrap" class="scroll-shell" hidden>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th class="is-left">Måling</th>
+                                    <th class="is-right">CPU</th>
+                                    <th class="is-right">Hukommelse</th>
+                                    <th class="is-right">Disk</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trend-table-body"></tbody>
+                        </table>
+                    </div>
+                    <p id="trend-empty" class="empty-note" hidden>Ikke nok målinger endnu til at vise udvikling.</p>
+                </div>
 
                 <div class="card disk-card">
                     <div class="disk-card__title">Diskplads</div>

@@ -1,10 +1,13 @@
 /* ==========================================================================
-   Server monitoring dashboard — loads real data from GET /api/company/servers.
-   No fake/local data: a server record here is exactly { id, serverName,
-   ipAddress, cpuUsage, ramUsage, ramTotal, diskTotalSpace,
-   diskRemainingSpace } — the schema has no temperature, history,
-   per-process, network/disk-IO/fan, or "offline" fields, so none of that is
-   rendered anymore.
+   Server monitoring dashboard — loads real data from
+   GET /api/CompanyHardwareData/GetAll/{companyId} (companyId comes from
+   GET /api/company first, same pattern as users.js/create-server.js).
+   That endpoint has no join to the serviceclients table, so it returns no
+   serverName/ipAddress — only a ServiceId. Until a backend endpoint exists
+   for that, servers are labelled "Service {ServiceId}" with ipAddress "—".
+   It's also a raw insert log (one row per reading, no update/upsert): the
+   latest row per ServiceId is the fleet/gauge snapshot, and the recent rows
+   before it feed the per-server trend chart — see mapHardwareRows/renderTrend.
    ========================================================================== */
 (function () {
   "use strict";
@@ -38,7 +41,17 @@
 
   var POLL_MS = 15000; // real network calls, not a client-side generator — no need for a 2.2s cadence
 
-  var State = { servers: [], selected: null, live: true, view: "grid" };
+  var State = { servers: [], history: {}, selected: null, live: true, view: "grid", companyId: null, trendView: "chart" };
+
+  // Trend chart series (renderTrendChart/renderTrendLegend) — CPU/RAM/disk
+  // share one 0-100% axis, so one chart with three lines instead of three
+  // separate ones. Colors come from tokens.css (validated together via
+  // dataviz's validate_palette.js — see the tokens.css comment).
+  var TREND_SERIES = [
+    { key: "cpu", label: "CPU", color: "var(--nf-chart-cpu)" },
+    { key: "ram", label: "Hukommelse", color: "var(--nf-chart-ram)" },
+    { key: "disk", label: "Disk", color: "var(--nf-chart-disk)" }
+  ];
 
   // Forces n to stay within [lo, hi] — keeps a percentage from ever showing as e.g. 104% or -3%.
   function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
@@ -86,6 +99,7 @@
       renderAlert(sel);
       renderGauges(sel);
       renderDisk(sel);
+      renderTrend(sel);
     }
   }
 
@@ -226,15 +240,212 @@
     document.getElementById("disk-note").textContent = nf(disk, 0) + " % brugt";
   }
 
+  function renderTrendLegend() {
+    document.getElementById("trend-legend").innerHTML = TREND_SERIES.map(function (series) {
+      return '<span class="trend-legend__item"><span class="trend-legend__key" style="background:' + series.color + '"></span>' + esc(series.label) + '</span>';
+    }).join("");
+  }
+
+  // Shows the chart or the table (never both) per State.trendView, without
+  // touching their content — so toggling doesn't fight the 15s poll re-render.
+  function applyTrendView() {
+    var isTable = State.trendView === "table";
+    document.getElementById("trend-chart-wrap").hidden = isTable;
+    document.getElementById("trend-table-wrap").hidden = !isTable;
+    document.getElementById("trend-table-toggle").textContent = isTable ? "Vis som graf" : "Vis som tabel";
+  }
+
+  // Draws the per-server CPU/hukommelse/disk trend: one 0-100% axis, three
+  // lines (see TREND_SERIES) sharing it — never a dual-axis chart. A hover
+  // crosshair + tooltip reads all three at once; the table toggle is the
+  // no-hover/keyboard fallback so every value stays reachable.
+  function renderTrend(s) {
+    var history = State.history[s.id] || [];
+    var toggleBtn = document.getElementById("trend-table-toggle");
+    var emptyNote = document.getElementById("trend-empty");
+    var tooltip = document.getElementById("trend-tooltip");
+
+    renderTrendLegend();
+
+    if (history.length < 2) {
+      document.getElementById("trend-chart-wrap").hidden = true;
+      document.getElementById("trend-table-wrap").hidden = true;
+      toggleBtn.hidden = true;
+      tooltip.hidden = true;
+      emptyNote.hidden = false;
+      return;
+    }
+    emptyNote.hidden = true;
+    toggleBtn.hidden = false;
+    applyTrendView();
+
+    var points = history.map(function (h) {
+      return { cpu: h.cpuUsage, ram: ramPct(h), disk: diskUsedPct(h) };
+    });
+
+    var chartWidth = 640, chartHeight = 200;
+    var paddingLeft = 32, paddingRight = 12, paddingTop = 10, paddingBottom = 10;
+    var plotWidth = chartWidth - paddingLeft - paddingRight;
+    var plotHeight = chartHeight - paddingTop - paddingBottom;
+    var lastReadingIndex = points.length - 1;
+
+    function xForReading(readingIndex) {
+      return paddingLeft + (lastReadingIndex === 0 ? 0 : (readingIndex / lastReadingIndex) * plotWidth);
+    }
+    function yForPercent(percent) {
+      return paddingTop + plotHeight - (clamp(percent, 0, 100) / 100) * plotHeight;
+    }
+    function pathFor(seriesKey) {
+      return points.map(function (p, readingIndex) {
+        return (readingIndex === 0 ? "M" : "L") + xForReading(readingIndex).toFixed(1) + "," + yForPercent(p[seriesKey]).toFixed(1);
+      }).join(" ");
+    }
+
+    var gridSvg = [0, 50, 100].map(function (tickPercent) {
+      var tickY = yForPercent(tickPercent).toFixed(1);
+      return '<line class="trend-chart__grid" x1="' + paddingLeft + '" x2="' + (chartWidth - paddingRight) + '" y1="' + tickY + '" y2="' + tickY + '"></line>' +
+        '<text class="trend-chart__tick" x="' + (paddingLeft - 6) + '" y="' + (yForPercent(tickPercent) + 3).toFixed(1) + '" text-anchor="end">' + tickPercent + '%</text>';
+    }).join("");
+
+    var linesSvg = TREND_SERIES.map(function (series) {
+      return '<path class="trend-chart__line" d="' + pathFor(series.key) + '" style="stroke:' + series.color + '"></path>';
+    }).join("");
+
+    var endDotsSvg = TREND_SERIES.map(function (series) {
+      return '<circle class="trend-chart__dot" r="4" cx="' + xForReading(lastReadingIndex).toFixed(1) + '" cy="' + yForPercent(points[lastReadingIndex][series.key]).toFixed(1) + '" style="fill:' + series.color + '"></circle>';
+    }).join("");
+
+    var chartEl = document.getElementById("trend-chart");
+    chartEl.innerHTML =
+      '<svg viewBox="0 0 ' + chartWidth + ' ' + chartHeight + '" role="img" aria-label="Udvikling for CPU, hukommelse og disk over de seneste målinger">' +
+      gridSvg +
+      linesSvg + endDotsSvg +
+      '<g class="trend-chart__crosshair-group" hidden><line class="trend-chart__crosshair" y1="' + paddingTop + '" y2="' + (paddingTop + plotHeight) + '"></line></g>' +
+      '<rect class="trend-chart__hit" x="' + paddingLeft + '" y="' + paddingTop + '" width="' + plotWidth + '" height="' + plotHeight + '"></rect>' +
+      '</svg>';
+
+    var svg = chartEl.querySelector("svg");
+    var hitRect = chartEl.querySelector(".trend-chart__hit");
+    var crosshairGroup = chartEl.querySelector(".trend-chart__crosshair-group");
+    var crosshairLine = crosshairGroup.querySelector("line");
+    var wrapEl = document.getElementById("trend-chart-wrap");
+
+    function nearestReadingIndex(pointerClientX) {
+      var box = svg.getBoundingClientRect();
+      var svgX = (pointerClientX - box.left) / box.width * chartWidth;
+      return clamp(Math.round(((svgX - paddingLeft) / plotWidth) * lastReadingIndex), 0, lastReadingIndex);
+    }
+
+    function showTooltip(readingIndex, pointerClientX) {
+      var p = points[readingIndex];
+      crosshairGroup.hidden = false;
+      crosshairLine.setAttribute("x1", xForReading(readingIndex).toFixed(1));
+      crosshairLine.setAttribute("x2", xForReading(readingIndex).toFixed(1));
+
+      tooltip.innerHTML =
+        '<div class="trend-tooltip__title">Måling ' + (readingIndex + 1) + ' af ' + points.length + '</div>' +
+        TREND_SERIES.map(function (series) {
+          return '<div class="trend-tooltip__row">' +
+            '<span class="trend-tooltip__row-label"><span class="trend-tooltip__key" style="background:' + series.color + '"></span>' + esc(series.label) + '</span>' +
+            '<span class="trend-tooltip__value">' + nf(p[series.key], 0) + ' %</span>' +
+            '</div>';
+        }).join("");
+      tooltip.hidden = false;
+
+      var wrapBox = wrapEl.getBoundingClientRect();
+      var left = pointerClientX - wrapBox.left + 14;
+      if (left + 150 > wrapBox.width) left = pointerClientX - wrapBox.left - 150 - 14;
+      tooltip.style.left = Math.max(0, left) + "px";
+    }
+
+    function hideTooltip() {
+      crosshairGroup.hidden = true;
+      tooltip.hidden = true;
+    }
+
+    hitRect.addEventListener("mousemove", function (e) { showTooltip(nearestReadingIndex(e.clientX), e.clientX); });
+    hitRect.addEventListener("mouseleave", hideTooltip);
+
+    document.getElementById("trend-table-body").innerHTML = points.map(function (p, i) {
+      return '<tr>' +
+        '<td>Måling ' + (i + 1) + '</td>' +
+        '<td class="is-right">' + nf(p.cpu, 0) + ' %</td>' +
+        '<td class="is-right">' + nf(p.ram, 0) + ' %</td>' +
+        '<td class="is-right">' + nf(p.disk, 0) + ' %</td>' +
+        '</tr>';
+    }).join("");
+  }
+
   function setFleetStatus(text) {
     var el = document.getElementById("fleet-status");
     if (text) { el.textContent = text; el.hidden = false; } else { el.hidden = true; }
   }
 
+  function ensureCompanyId() {
+    if (State.companyId) return Promise.resolve(State.companyId);
+    return NWApi.get("/company").then(function (company) {
+      State.companyId = company && company.id;
+      return State.companyId;
+    });
+  }
+
+  // How many recent readings the trend chart keeps per server — a company
+  // can have arbitrarily many historical rows in companyhardwaredata; the
+  // chart only needs a recent-trend window, not the full log.
+  var HISTORY_LIMIT = 30;
+
+  // companyhardwaredata has no serverName/ipAddress and is an insert-only
+  // log (one row per reading, no update/upsert), so this groups rows by
+  // ServiceId, keeps the most recent HISTORY_LIMIT per service (oldest
+  // first) for the trend chart, and treats the last one as that server's
+  // current snapshot for the fleet list/gauges.
+  function mapHardwareRows(rows) {
+    var byService = {};
+    rows.forEach(function (row) {
+      (byService[row.serviceId] = byService[row.serviceId] || []).push(row);
+    });
+
+    var servers = [];
+    var history = {};
+    Object.keys(byService).forEach(function (serviceId) {
+      var readings = byService[serviceId].sort(function (a, b) { return a.id - b.id; });
+      if (readings.length > HISTORY_LIMIT) readings = readings.slice(readings.length - HISTORY_LIMIT);
+
+      var mapped = readings.map(function (row) {
+        return {
+          cpuUsage: row.cpuUsages,
+          ramUsage: row.ramUsage / 1024,
+          ramTotal: row.ramTotal / 1024,
+          diskTotalSpace: row.diskTotalSpace,
+          diskRemainingSpace: row.diskRemainingSpace
+        };
+      });
+      history[serviceId] = mapped;
+
+      var latest = mapped[mapped.length - 1];
+      servers.push({
+        id: Number(serviceId),
+        serverName: "Service " + serviceId,
+        ipAddress: "—",
+        cpuUsage: latest.cpuUsage,
+        ramUsage: latest.ramUsage,
+        ramTotal: latest.ramTotal,
+        diskTotalSpace: latest.diskTotalSpace,
+        diskRemainingSpace: latest.diskRemainingSpace
+      });
+    });
+
+    return { servers: servers, history: history };
+  }
+
   function loadServers() {
     setFleetStatus("Indlæser servere…");
-    return NWApi.get("/company/servers").then(function (servers) {
-      State.servers = servers || [];
+    return ensureCompanyId().then(function (companyId) {
+      return NWApi.get("/CompanyHardwareData/GetAll/" + companyId);
+    }).then(function (rows) {
+      var mapped = mapHardwareRows(rows || []);
+      State.servers = mapped.servers;
+      State.history = mapped.history;
       if (State.selected == null || !getSelected()) {
         State.selected = State.servers.length ? State.servers[0].id : null;
       }
@@ -282,6 +493,10 @@
     document.getElementById("pause-btn").addEventListener("click", function () {
       State.live = !State.live;
       renderLiveStatus();
+    });
+    document.getElementById("trend-table-toggle").addEventListener("click", function () {
+      State.trendView = State.trendView === "table" ? "chart" : "table";
+      applyTrendView();
     });
 
     renderLiveStatus();
