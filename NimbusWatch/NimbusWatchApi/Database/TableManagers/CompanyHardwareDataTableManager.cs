@@ -17,11 +17,13 @@ namespace NimbusWatchApi.Database.TableManagers
 
     public async Task<bool> AddCompanyHardwareData(CompanyHardwareData data)
     {
+      var table = CompanyTableNames.HardwareData(data.CompanyId);
+
       await using var connection = await OpenConnection();
       await using var cmd = connection.CreateCommand();
 
-      cmd.CommandText = """
-        INSERT INTO companyhardwaredata (CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal)
+      cmd.CommandText = $"""
+        INSERT INTO `{table}` (CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal)
         VALUES (@CompanyId, @ServiceId, @CpuUsages, @DiskTotalSpace, @DiskRemainingSpace, @RamUsage, @RamTotal);
         """;
 
@@ -38,25 +40,20 @@ namespace NimbusWatchApi.Database.TableManagers
 
     public async Task<List<CompanyHardwareData>> GetCompanyHardwareDataByCompanyId(string companyId)
     {
+      var table = CompanyTableNames.HardwareData(companyId);
       var result = new List<CompanyHardwareData>();
 
       await using var connection = await OpenConnection();
       await using var cmd = connection.CreateCommand();
 
-      cmd.CommandText = """
+      cmd.CommandText = $"""
         SELECT Id, CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal
-        FROM companyhardwaredata
-        WHERE CompanyId = @CompanyId;
+        FROM `{table}`;
         """;
 
-      cmd.Parameters.AddWithValue("@CompanyId", companyId);
-
       await using var reader = await cmd.ExecuteReaderAsync();
-
       while (await reader.ReadAsync())
-      {
         result.Add(MapModel(reader));
-      }
 
       return result;
     }

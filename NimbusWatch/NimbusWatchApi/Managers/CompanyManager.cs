@@ -29,6 +29,8 @@ namespace NimbusWatchApi.Managers
           return null;
         }
 
+        await databaseManager.EnsureCompanyTables(result.Id.ToString());
+
         var companyDto = new CompanyDto
         {
           Id = result.Id,

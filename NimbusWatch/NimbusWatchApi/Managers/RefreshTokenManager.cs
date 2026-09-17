@@ -10,6 +10,7 @@ namespace NimbusWatchApi.Managers
     Task<bool> Delete(Guid refreshTokenId);
     Task<RefreshTokens?> GetRefreshToken(Guid id, UserModel user);
     Task<bool> RotateRefreshToken(Guid usedTokenId, UserModel user, string expectedRefreshTokenHash, RefreshTokens newRefreshToken);
+    Task<bool> RevokeAllForUser(UserModel user);
   }
 
   public class RefreshTokenManager : IRefreshTokenManager
@@ -71,6 +72,19 @@ namespace NimbusWatchApi.Managers
           user.Id,
           expectedRefreshTokenHash,
           newRefreshToken);
+      }
+      catch (Exception)
+      {
+        return false;
+      }
+    }
+
+    public async Task<bool> RevokeAllForUser(UserModel user)
+    {
+      try
+      {
+        await databaseManager.RefreshTokens.RevokeAllForUser(user.Id);
+        return true;
       }
       catch (Exception)
       {

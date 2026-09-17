@@ -29,8 +29,8 @@ namespace NimbusWatchApi.Controllers
     }
 
     [AllowAnonymous]
-    [HttpPost("token")]
-    public async Task<IActionResult> Token([FromBody] ServiceTokenRequestDto request)
+    [HttpPost("token/{companyId}")]
+    public async Task<IActionResult> Token([FromRoute] string companyId, [FromBody] ServiceTokenRequestDto request)
     {
       if (!ModelState.IsValid)
         return BadRequest(ModelState);
@@ -38,7 +38,7 @@ namespace NimbusWatchApi.Controllers
       if (!string.Equals(request.GrantType, "client_credentials", StringComparison.Ordinal))
         return BadRequest("Unsupported grant_type.");
 
-      var client = await serviceClientManager.GetByClientIdAsync(request.ClientId);
+      var client = await serviceClientManager.GetByClientIdAsync(companyId, request.ClientId);
       if (client == null || !client.IsActive)
         return Unauthorized();
 

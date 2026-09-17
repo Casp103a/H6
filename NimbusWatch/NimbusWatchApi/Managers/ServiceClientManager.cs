@@ -8,10 +8,10 @@ namespace NimbusWatchApi.Managers
   public interface IServiceClientManager
   {
     Task<(Guid ClientId, string ClientSecret)?> AddAsync(CreateServerServiceDto client);
-    Task<bool> UpdateAsync(ServiceClientModel client);
-    Task<bool> DeleteAsync(int id);
-    Task<ServiceClientModel?> GetByClientIdAsync(Guid clientId);
-    Task<ServiceClientModel?> GetByClientIdAsync(string clientId);
+    Task<bool> UpdateAsync(string companyId, ServiceClientModel client);
+    Task<bool> DeleteAsync(string companyId, int id);
+    Task<ServiceClientModel?> GetByClientIdAsync(string companyId, Guid clientId);
+    Task<ServiceClientModel?> GetByClientIdAsync(string companyId, string clientId);
   }
 
   public class ServiceClientManager : IServiceClientManager
@@ -41,17 +41,17 @@ namespace NimbusWatchApi.Managers
         UpdatedAt = DateTime.UtcNow,
       };
 
-      if (!await databaseManager.ServiceClients.AddServiceClient(serviceClientModel))
+      if (!await databaseManager.ServiceClients.AddServiceClient(client.CompanyId, serviceClientModel))
         return null;
 
       return (clientId, plainSecret);
     }
 
-    public async Task<bool> UpdateAsync(ServiceClientModel client)
+    public async Task<bool> UpdateAsync(string companyId, ServiceClientModel client)
     {
       try
       {
-        return await databaseManager.ServiceClients.UpdateServiceClient(client);
+        return await databaseManager.ServiceClients.UpdateServiceClient(companyId, client);
       }
       catch (Exception)
       {
@@ -59,11 +59,11 @@ namespace NimbusWatchApi.Managers
       }
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(string companyId, int id)
     {
       try
       {
-        return await databaseManager.ServiceClients.DeleteServiceClient(id);
+        return await databaseManager.ServiceClients.DeleteServiceClient(companyId, id);
       }
       catch (Exception)
       {
@@ -71,11 +71,11 @@ namespace NimbusWatchApi.Managers
       }
     }
 
-    public async Task<ServiceClientModel?> GetByClientIdAsync(Guid clientId)
+    public async Task<ServiceClientModel?> GetByClientIdAsync(string companyId, Guid clientId)
     {
       try
       {
-        return await databaseManager.ServiceClients.GetServiceClientByClientId(clientId);
+        return await databaseManager.ServiceClients.GetServiceClientByClientId(companyId, clientId);
       }
       catch (Exception)
       {
@@ -83,14 +83,14 @@ namespace NimbusWatchApi.Managers
       }
     }
 
-    public async Task<ServiceClientModel?> GetByClientIdAsync(string clientId)
+    public async Task<ServiceClientModel?> GetByClientIdAsync(string companyId, string clientId)
     {
       try
       {
         if (!Guid.TryParse(clientId, out var parsedClientId))
           return null;
 
-        return await databaseManager.ServiceClients.GetServiceClientByClientId(parsedClientId);
+        return await databaseManager.ServiceClients.GetServiceClientByClientId(companyId, parsedClientId);
       }
       catch (Exception)
       {
