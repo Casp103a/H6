@@ -1,17 +1,20 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 
-namespace NimbusWatchApi.Services
+namespace ClassLibrary.Services
 {
-  public interface IPasswordService
+  public interface IEncryptingService
   {
     string Encrypt(string? password);
     string Decrypt(string? password);
+    string EncryptForFile(string? file);
+    string DecryptForFile(string? file);
   }
 
-  public class PasswordService : IPasswordService
+  public sealed class EncryptingService : IEncryptingService
   {
     private readonly string _masterKey = "dhsbuid3467812!!34272386fsdnguirghfh!231huiasdfty!21321&%¤#";
+    private readonly string _masterKeyForFile = "dasdhdjkdsfgff1326872121%&2131231!dhsbuid3467812!!34272386fsdnguirghfh!231huiasdfty!21321&%¤#";
 
     private const int SaltSize = 32; // 256-bit
     private const int IvSize = 12; // 96-bit  (GCM standard)
@@ -43,6 +46,25 @@ namespace NimbusWatchApi.Services
       return Convert.ToBase64String(Pack(salt, iv, tag, cipherBytes));
     }
 
+    public string EncryptForFile(string? file)
+    {
+      if (string.IsNullOrEmpty(file))
+        throw new ArgumentNullException(nameof(file));
+
+      byte[] salt = RandomBytes(SaltSize);
+      byte[] iv = RandomBytes(IvSize);
+      byte[] key = DeriveKey(salt, true);
+
+      byte[] plainBytes = Encoding.UTF8.GetBytes(file);
+      byte[] cipherBytes = new byte[plainBytes.Length];
+      byte[] tag = new byte[TagSize];
+
+      using (var aesGcm = new AesGcm(key, TagSize))
+        aesGcm.Encrypt(iv, plainBytes, cipherBytes, tag);
+
+      return Convert.ToBase64String(Pack(salt, iv, tag, cipherBytes));
+    }
+
     /// <summary>
     /// Decrypts a Base64-encoded string produced by <see cref="Encrypt"/>.
     /// Throws <see cref="CryptographicException"/> if the data is invalid or tampered with.
@@ -65,6 +87,24 @@ namespace NimbusWatchApi.Services
       return Encoding.UTF8.GetString(plainBytes);
     }
 
+    public string DecryptForFile(string? file)
+    {
+      if (string.IsNullOrEmpty(file))
+        throw new ArgumentNullException(nameof(file));
+
+      byte[] blob = Convert.FromBase64String(file);
+
+      (byte[] salt, byte[] iv, byte[] tag, byte[] cipherBytes) = Unpack(blob);
+
+      byte[] key = DeriveKey(salt, true);
+      byte[] plainBytes = new byte[cipherBytes.Length];
+
+      using (var aesGcm = new AesGcm(key, TagSize))
+        aesGcm.Decrypt(iv, cipherBytes, tag, plainBytes);
+
+      return Encoding.UTF8.GetString(plainBytes);
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
@@ -73,6 +113,13 @@ namespace NimbusWatchApi.Services
     {
       using var kdf = new Rfc2898DeriveBytes(
           _masterKey, salt, Iterations, HashAlgorithmName.SHA512);
+      return kdf.GetBytes(KeySize);
+    }
+
+    private byte[] DeriveKey(byte[] salt, bool forFile)
+    {
+      using var kdf = new Rfc2898DeriveBytes(
+          forFile ? _masterKeyForFile : _masterKey, salt, Iterations, HashAlgorithmName.SHA512);
       return kdf.GetBytes(KeySize);
     }
 

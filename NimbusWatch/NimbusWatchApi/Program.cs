@@ -1,8 +1,10 @@
+using ClassLibrary.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using NimbusWatchApi.Database;
 using NimbusWatchApi.Managers;
+using NimbusWatchApi.Options;
 using NimbusWatchApi.Services;
 using System.Security.Claims;
 
@@ -20,6 +22,9 @@ namespace NimbusWatchApi
       // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
       builder.Services.AddOpenApi();
 
+      builder.Services.Configure<ServiceAuthOptions>(
+        builder.Configuration.GetSection("ServiceAuth"));
+
       builder.Services.Configure<ForwardedHeadersOptions>(options =>
       {
         options.ForwardedHeaders =
@@ -32,7 +37,14 @@ namespace NimbusWatchApi
         options.RequireHeaderSymmetry = false;
       });
 
-      builder.Services.AddAuthorization();
+      builder.Services.AddAuthorization(options =>
+      {
+        options.AddPolicy("ServiceOnly", policy =>
+        {
+          policy.RequireClaim("client_id");
+        });
+      });
+
       builder.Services.AddAuthentication(options =>
       {
         options.DefaultAuthenticateScheme =
@@ -84,10 +96,13 @@ namespace NimbusWatchApi
 
       builder.Services.AddScoped<IUserManager, UserManager>();
       builder.Services.AddScoped<IRefreshTokenManager, RefreshTokenManager>();
-      builder.Services.AddScoped<IPasswordService, PasswordService>();
+      builder.Services.AddScoped<IEncryptingService, EncryptingService>();
       builder.Services.AddScoped<ITokenService, TokenService>();
       builder.Services.AddScoped<ICompanyManager, CompanyManager>();
       builder.Services.AddScoped<IRoleManager, RoleManager>();
+      builder.Services.AddScoped<IServiceClientManager, ServiceClientManager>();
+      builder.Services.AddScoped<ICompanyHardwareDataManager, CompanyHardwareDataManager>();
+      builder.Services.AddSingleton<IClientSecretService, ClientSecretService>();
 
       var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");

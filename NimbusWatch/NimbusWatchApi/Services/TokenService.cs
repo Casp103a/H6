@@ -11,6 +11,7 @@ namespace NimbusWatchApi.Services
   public interface ITokenService
   {
     string CreateToken(UserModel user, out Guid id);
+    string CreateServiceToken(Guid clientId, int role);
     string CreateRefreshToken();
     string HashRefreshToken(string refreshToken);
     ClaimsPrincipal ValidateToken(string token);
@@ -62,12 +63,39 @@ namespace NimbusWatchApi.Services
         new Claim(ClaimTypes.Sid, id.ToString())
       };
 
+      return WriteToken(claims, DateTime.UtcNow.AddMinutes(15));
+    }
+
+    public string CreateServiceToken(Guid clientId, int role)
+    {
+      var roleDto = roleManager.GetRole(role).GetAwaiter().GetResult();
+
+      if (roleDto == null)
+        return string.Empty;
+
+      var clientIdValue = clientId.ToString();
+
+      var claims = new List<Claim>
+      {
+        new Claim(JwtRegisteredClaimNames.Sub, clientIdValue),
+        new Claim(ClaimTypes.Name, clientIdValue),
+        new Claim("client_id", clientIdValue),
+        new Claim(ClaimTypes.Role, roleDto.Name),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+      };
+
+      var lifetimeMinutes = config.GetValue<int?>("ServiceAuth:AccessTokenLifetimeMinutes") ?? 5;
+      return WriteToken(claims, DateTime.UtcNow.AddMinutes(lifetimeMinutes));
+    }
+
+    private string WriteToken(IEnumerable<Claim> claims, DateTime expiresUtc)
+    {
       var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
       var descriptor = new SecurityTokenDescriptor
       {
         Subject = new ClaimsIdentity(claims),
-        Expires = DateTime.UtcNow.AddMinutes(15),
+        Expires = expiresUtc,
         SigningCredentials = creds,
         Issuer = config["JWT:Issuer"],
         Audience = config["JWT:Audience"]

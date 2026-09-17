@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="ClassLibrary/ClassLibrary.csproj" Id="c4d96f7f-3a57-49f3-95a8-00173caa2e2a" />
   <Project Path="NimbusWatchApi/NimbusWatchApi.csproj" />
+  <Project Path="ServerService/ServerService.csproj" Id="40c4833c-4ee5-4c11-a6a3-606ff56b33a3" />
 </Solution>
