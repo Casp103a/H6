@@ -11,6 +11,7 @@ namespace NimbusWatchApi.Managers
     //Task<bool> DeleteAsync(int id);
     //Task<CompanyHardwareData?> GetByIdAsync(int id);
     Task<List<CompanyHardwareData>> GetAllByCompanyIdAsync(string companyId);
+    Task<List<CompanyHardwareData>> GetAllByServiceIdAsync(string companyId, int serviceId);
   }
 
   public class CompanyHardwareDataManager : ICompanyHardwareDataManager
@@ -61,6 +62,19 @@ namespace NimbusWatchApi.Managers
       catch (Exception)
       {
 
+        return new List<CompanyHardwareData>();
+      }
+    }
+
+    public async Task<List<CompanyHardwareData>> GetAllByServiceIdAsync(string companyId, int serviceId)
+    {
+      try
+      {
+        var result = await databaseManager.CompanyHardwareData.GetCompanyHardwareDataByServiceId(companyId, serviceId);
+        return result;
+      }
+      catch (Exception)
+      {
         return new List<CompanyHardwareData>();
       }
     }

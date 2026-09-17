@@ -66,13 +66,36 @@ namespace NimbusWatchApi.Controllers
         var serverInfo = new ServiceInfoDto
         {
           ServerName = result.ServerName,
-          IpAddress = result.IpAddress
+          IpAddress = result.IpAddress,
+          ClientId = result.ClientId.ToString()
         };
 
         return Ok(serverInfo);
       }
       else
         return NotFound("Service client not found.");
+    }
+
+    [HttpGet("GetAll/{companyId}")]
+    public async Task<IActionResult> GetAll([FromRoute] string companyId)
+    {
+      if (string.IsNullOrEmpty(companyId))
+        return BadRequest("CompanyId cannot be null or empty.");
+
+      var result = await serviceClientManager.GetAllByCompanyIdAsync(companyId);
+      if (result != null && result.Any())
+      {
+        var serverInfos = result.Select(r => new ServiceInfoDto
+        {
+          ServerName = r.ServerName,
+          IpAddress = r.IpAddress,
+          ClientId = r.ClientId.ToString()
+        });
+
+        return Ok(serverInfos);
+      }
+      else
+        return NotFound("No service clients found for the specified company.");
     }
   }
 }
