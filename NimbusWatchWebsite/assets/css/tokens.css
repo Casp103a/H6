@@ -98,6 +98,14 @@
     --nf-active-bg:        var(--nf-gray-200); /* button active/press fill */
     --nf-badge-neutral-bg: var(--nf-gray-100); /* neutral pill background (inactive user, etc.) */
     --nf-badge-neutral-fg: var(--nf-gray-600); /* neutral pill text */
+
+    /* Trend chart series (dashboard.js renderTrendChart) — CPU reuses the
+       brand blue used elsewhere for CPU (gauge ring); RAM/disk are new
+       categorical slots, validated together with it via
+       dataviz/scripts/validate_palette.js (all-pairs, light & dark). */
+    --nf-chart-cpu:  var(--nf-primary);
+    --nf-chart-ram:  #eb6834;
+    --nf-chart-disk: #1baf7a;
 }
 
 /* ==========================================================================
@@ -139,6 +147,9 @@
     --nf-badge-neutral-fg: var(--nf-gray-300);
 
     --nf-shadow-card: 0 1px 4px oklch(0% 0 0 / 35%);
+
+    --nf-chart-ram:  #d95926;
+    --nf-chart-disk: #199e70;
 }
 
 /* ==========================================================================

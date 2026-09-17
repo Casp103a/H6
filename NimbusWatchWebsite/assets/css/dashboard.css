@@ -1,7 +1,7 @@
 /* ==========================================================================
    Server monitoring dashboard — layout & components
-   Desktop-first, intentionally non-responsive below 1360px (per design spec:
-   the fleet view is an operator console, not a mobile surface).
+   Desktop-first, reflows down to phone widths — see the responsive block
+   at the bottom of this file.
    ========================================================================== */
 
 html, body {
@@ -326,6 +326,41 @@ button, input { font: inherit; }
     box-shadow: var(--nf-shadow-card);
 }
 
+/* ---------- Trend chart (per-server CPU/RAM/disk history) ---------- */
+.trend-card { padding: 18px; }
+.trend-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.trend-card__title { font-size: 14px; font-weight: 700; color: var(--nf-text-heading); }
+.trend-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
+.trend-legend__item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--nf-text-muted); }
+.trend-legend__key { width: 12px; height: 2px; border-radius: 999px; flex: none; }
+
+.trend-chart-wrap { position: relative; }
+/* aspect-ratio (not a fixed height) keeps the 640x200 viewBox unscaled
+   anisotropically — a fixed height + width:100% would stretch strokes/text
+   whenever the container isn't exactly 3.2:1. */
+.trend-chart { width: 100%; aspect-ratio: 640 / 200; max-height: 260px; }
+.trend-chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.trend-chart__grid { stroke: var(--nf-hairline); stroke-width: 1; }
+.trend-chart__baseline { stroke: var(--nf-border-color); stroke-width: 1; }
+.trend-chart__tick { font-size: 10px; fill: var(--nf-text-muted); font-variant-numeric: tabular-nums; }
+.trend-chart__line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.trend-chart__dot { stroke: var(--nf-base-100); stroke-width: 2; }
+.trend-chart__crosshair { stroke: var(--nf-border-color-hover); stroke-width: 1; }
+.trend-chart__hit { fill: transparent; cursor: crosshair; }
+
+.trend-tooltip {
+    position: absolute; top: 0; z-index: 10;
+    min-width: 140px; padding: 8px 10px;
+    background: var(--nf-base-100); border: 1px solid var(--nf-divider); border-radius: 6px;
+    box-shadow: var(--nf-menu-shadow);
+    font-size: 12px; pointer-events: none;
+}
+.trend-tooltip__title { font-size: 11px; color: var(--nf-text-muted); margin-bottom: 4px; }
+.trend-tooltip__row { display: flex; align-items: center; gap: 6px; justify-content: space-between; margin-top: 2px; }
+.trend-tooltip__row-label { display: flex; align-items: center; gap: 6px; color: var(--nf-text-muted); }
+.trend-tooltip__key { width: 10px; height: 2px; border-radius: 999px; flex: none; }
+.trend-tooltip__value { font-weight: 700; color: var(--nf-text-heading); font-variant-numeric: tabular-nums; }
+
 .disk-card { padding: 18px; }
 .disk-card__title { font-size: 14px; font-weight: 700; color: var(--nf-text-heading); margin-bottom: 14px; }
 .volume__head { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; margin-bottom: 5px; }
@@ -411,23 +446,39 @@ button, input { font: inherit; }
 .back-link:hover { color: var(--nf-text-heading); }
 
 /* ==========================================================================
-   Responsive — reflows down to ~900px (the floor set by .app-header/.layout
-   min-width above) so the page never needs horizontal scrolling in that
-   range. Below 900px is out of scope, same as the original 1360px floor.
+   Responsive — reflows through tablet (900px) and phone (480px) widths.
+   .app-header/.layout carry a min-width above for the desktop grid, which
+   is cleared again below so the page never needs horizontal scrolling.
    ========================================================================== */
 @media (max-width: 1150px) {
     .search-box { display: none; }
 }
 
 @media (max-width: 900px) {
-    .app-header { padding: 0 16px; gap: 12px; }
+    .app-header { min-width: 0; padding: 0 16px; gap: 12px; }
     .live-status__detail { display: none; }
 
-    .layout { grid-template-columns: 1fr; }
+    .layout { grid-template-columns: 1fr; min-width: 0; }
     .sidebar { border-right: none; border-bottom: 1px solid var(--nf-divider); min-height: auto; }
     .server-list { max-height: 320px; overflow-y: auto; }
 
     .main { padding: 16px 16px 32px; max-width: none; }
     .grid-view { padding: 16px 16px 32px; }
     .panels-row { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+    .app-header { gap: 8px; padding: 0 12px; }
+    #pause-btn .btn-label { display: none; }
+    .btn { padding: 0 10px; }
+
+    .nw-word { font-size: 13px; }
+
+    .grid-view__head { align-items: flex-start; }
+    .host-header__actions { width: 100%; }
+    .host-header__actions .btn { flex: 1; justify-content: center; }
+
+    .fleet-tally, .fleet-tally--grid { grid-template-columns: 1fr; }
+
+    .disk-stats { grid-template-columns: 1fr; }
 }
