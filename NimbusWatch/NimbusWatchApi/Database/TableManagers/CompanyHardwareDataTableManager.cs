@@ -7,6 +7,7 @@ namespace NimbusWatchApi.Database.TableManagers
   {
     Task<bool> AddCompanyHardwareData(CompanyHardwareData data);
     Task<List<CompanyHardwareData>> GetCompanyHardwareDataByCompanyId(string companyId);
+    Task<List<CompanyHardwareData>> GetCompanyHardwareDataByServiceId(string companyId, int serviceId);
   }
 
   public class CompanyHardwareDataTableManager : TableManager, ICompanyHardwareDataTableManager
@@ -52,6 +53,31 @@ namespace NimbusWatchApi.Database.TableManagers
         """;
 
       await using var reader = await cmd.ExecuteReaderAsync();
+
+      while (await reader.ReadAsync())
+        result.Add(MapModel(reader));
+
+      return result;
+    }
+
+    public async Task<List<CompanyHardwareData>> GetCompanyHardwareDataByServiceId(string companyId, int serviceId)
+    {
+      var table = CompanyTableNames.HardwareData(companyId);
+      var result = new List<CompanyHardwareData>();
+
+      await using var connection = await OpenConnection();
+      await using var cmd = connection.CreateCommand();
+
+      cmd.CommandText = $"""
+        SELECT Id, CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal
+        FROM `{table}`
+        WHERE ServiceId = @ServiceId;
+        """;
+
+      cmd.Parameters.AddWithValue("@ServiceId", serviceId);
+
+      await using var reader = await cmd.ExecuteReaderAsync();
+
       while (await reader.ReadAsync())
         result.Add(MapModel(reader));
 

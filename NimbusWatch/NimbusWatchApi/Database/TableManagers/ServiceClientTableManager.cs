@@ -11,6 +11,7 @@ namespace NimbusWatchApi.Database.TableManagers
     Task<List<ServiceClientModel>> GetAllServiceClients(string companyId);
     Task<ServiceClientModel?> GetServiceClientByClientId(string companyId, Guid clientId);
     Task<ServiceClientModel?> GetServiceClientByClientId(string companyId, string clientId);
+    Task<List<ServiceClientModel>> GetAllServiceClientsByCompanyId(string companyId);
   }
 
   public class ServiceClientTableManager : TableManager, IServiceClientTableManager
@@ -131,6 +132,26 @@ namespace NimbusWatchApi.Database.TableManagers
 
       await using var reader = await cmd.ExecuteReaderAsync();
       return await reader.ReadAsync() ? MapClient(reader) : null;
+    }
+
+    public async Task<List<ServiceClientModel>> GetAllServiceClientsByCompanyId(string companyId)
+    {
+      var table = CompanyTableNames.ServiceClients(companyId);
+
+      await using var connection = await OpenConnection();
+      await using var cmd = connection.CreateCommand();
+
+      cmd.CommandText = $"""
+        SELECT Id, ClientId, ClientSecretHash, ServerName, IpAddress, RoleId, IsActive, CreatedAt, UpdatedAt
+        FROM `{table}`;
+        """;
+
+      var clients = new List<ServiceClientModel>();
+      await using var reader = await cmd.ExecuteReaderAsync();
+      while (await reader.ReadAsync())
+        clients.Add(MapClient(reader));
+
+      return clients;
     }
 
     private static ServiceClientModel MapClient(MySqlDataReader reader)

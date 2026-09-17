@@ -11,6 +11,7 @@ namespace NimbusWatchApi.Managers
     Task<bool> UpdateAsync(string companyId, ServiceClientModel client);
     Task<bool> DeleteAsync(string companyId, int id);
     Task<ServiceClientModel?> GetByClientIdAsync(string companyId, Guid clientId);
+    Task<List<ServiceClientModel>?> GetAllByCompanyIdAsync(string companyId);
     Task<ServiceClientModel?> GetByClientIdAsync(string companyId, string clientId);
   }
 
@@ -91,6 +92,18 @@ namespace NimbusWatchApi.Managers
           return null;
 
         return await databaseManager.ServiceClients.GetServiceClientByClientId(companyId, parsedClientId);
+      }
+      catch (Exception)
+      {
+        return null;
+      }
+    }
+
+    public async Task<List<ServiceClientModel>?> GetAllByCompanyIdAsync(string companyId)
+    {
+      try
+      {
+        return await databaseManager.ServiceClients.GetAllServiceClientsByCompanyId(companyId);
       }
       catch (Exception)
       {
