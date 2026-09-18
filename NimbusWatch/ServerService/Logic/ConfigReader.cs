@@ -18,8 +18,8 @@ namespace ServerService.Logic
 
     public ConfigReader(ILogger<ConfigReader> logger)
     {
-      Configuration = ReadConfig();
       this.logger = logger;
+      Configuration = ReadConfig();
     }
 
     private ServiceConfiguration ReadConfig()
