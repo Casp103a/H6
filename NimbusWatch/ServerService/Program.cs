@@ -26,6 +26,7 @@ namespace ServerService
       builder.Services.AddSingleton<IConfigReader, ConfigReader>();
       builder.Services.AddSingleton<IHardwareReader, HardwareReader>();
       builder.Services.AddSingleton<ITokenProvider, TokenProvider>();
+      builder.Services.AddSingleton<IServiceInfoFetcher, ServiceInfoFetcher>();
       builder.Services.AddTransient<AuthHeaderHandler>();
       builder.Services.AddHostedService<Worker>();
 

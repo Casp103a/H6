@@ -8,6 +8,7 @@ namespace ServerService.Logic
   [JsonSerializable(typeof(CompanyHardwareDataDto))]
   [JsonSerializable(typeof(ServiceTokenRequestDto))]
   [JsonSerializable(typeof(ServiceTokenResponseDto))]
+  [JsonSerializable(typeof(ServiceInfoDto))]
   [JsonSourceGenerationOptions(
     PropertyNameCaseInsensitive = true,
     WriteIndented = true,

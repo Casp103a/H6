@@ -10,5 +10,6 @@
     public double DiskRemainingSpace { get; set; }
     public double RamUsage { get; set; }
     public double RamTotal { get; set; }
+    public DateTime CreatedAt { get; set; }
   }
 }

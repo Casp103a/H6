@@ -24,8 +24,8 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = $"""
-        INSERT INTO `{table}` (CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal)
-        VALUES (@CompanyId, @ServiceId, @CpuUsages, @DiskTotalSpace, @DiskRemainingSpace, @RamUsage, @RamTotal);
+        INSERT INTO `{table}` (CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal, CreatedAt)
+        VALUES (@CompanyId, @ServiceId, @CpuUsages, @DiskTotalSpace, @DiskRemainingSpace, @RamUsage, @RamTotal, @CreatedAt);
         """;
 
       cmd.Parameters.AddWithValue("@CompanyId", data.CompanyId);
@@ -35,6 +35,7 @@ namespace NimbusWatchApi.Database.TableManagers
       cmd.Parameters.AddWithValue("@DiskRemainingSpace", data.DiskRemainingSpace);
       cmd.Parameters.AddWithValue("@RamUsage", data.RamUsage);
       cmd.Parameters.AddWithValue("@RamTotal", data.RamTotal);
+      cmd.Parameters.AddWithValue("@CreatedAt", data.CreatedAt);
 
       return await cmd.ExecuteNonQueryAsync() > 0;
     }
@@ -48,7 +49,7 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = $"""
-        SELECT Id, CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal
+        SELECT Id, CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal, CreatedAt
         FROM `{table}`;
         """;
 
@@ -69,7 +70,7 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = $"""
-        SELECT Id, CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal
+        SELECT Id, CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal, CreatedAt
         FROM `{table}`
         WHERE ServiceId = @ServiceId;
         """;
@@ -96,6 +97,7 @@ namespace NimbusWatchApi.Database.TableManagers
         DiskRemainingSpace = reader.GetDouble("DiskRemainingSpace"),
         RamUsage = reader.GetDouble("RamUsage"),
         RamTotal = reader.GetDouble("RamTotal"),
+        CreatedAt = reader.GetDateTime("CreatedAt"),
       };
     }
   }
