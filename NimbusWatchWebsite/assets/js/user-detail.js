@@ -26,7 +26,7 @@
 
   function loadRoles() {
     return NWApi.get("/role").then(function (roles) {
-      State.roles = roles || [];
+      State.roles = (roles || []).filter(function (r) { return r.name !== "Service"; });
       document.getElementById("edit-user-role").innerHTML = State.roles.map(function (r) {
         return '<option value="' + r.id + '">' + esc(r.name) + '</option>';
       }).join("");
@@ -75,5 +75,15 @@
     }
     loadUser(State.id);
     document.getElementById("edit-user-form").addEventListener("submit", submitEditForm);
+  });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    NWApi.get("/user/GetCurrentUserInfo").then(function (user) {
+      return NW.isAdmin(user);
+    }).catch(function () {
+      return false;
+    }).then(function (admin) {
+      if (admin) { initPage(); } else { window.location.href = NW.url("index.php"); }
+    });
   });
 })();

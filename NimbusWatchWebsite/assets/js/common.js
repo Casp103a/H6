@@ -83,16 +83,34 @@ window.NW = (function () {
     apply(document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
   }
 
+  // Resolves whether `user` holds the Admin role — shared by anything that
+  // needs to gate an Admin-only UI element or page (mirroring an
+  // [Authorize(Roles = "Admin")] endpoint on the API), so it's hidden/
+  // blocked client-side instead of shown and then erroring.
+  function isAdmin(user) {
+    if (!user) return Promise.resolve(false);
+    return NWApi.get("/role").then(function (roles) {
+      var role = (roles || []).find(function (r) { return r.id === user.roleId; });
+      return !!role && role.name === "Admin";
+    }).catch(function () { return false; });
+  }
+
   // GetAllUsers is [Authorize(Roles = "Admin")] on the API — non-admins get
   // a 403 from it, so the nav link stays hidden (its default state in the
   // markup) unless the current user's role resolves to "Admin".
   function initUsersNavVisibility(user) {
     var link = document.getElementById("users-nav-link");
-    if (!link || !user) return;
-    NWApi.get("/role").then(function (roles) {
-      var role = (roles || []).find(function (r) { return r.id === user.roleId; });
-      link.hidden = !role || role.name !== "Admin";
-    }).catch(function () { /* leave it hidden if this fails */ });
+    if (!link) return;
+    isAdmin(user).then(function (admin) { link.hidden = !admin; });
+  }
+
+  // "Tilføj server" is Admin-only (create-server.js redirects away on
+  // direct navigation too — this just hides the entry point) — same
+  // default-hidden-until-confirmed pattern as initUsersNavVisibility.
+  function initCreateServerVisibility(user) {
+    var link = document.getElementById("create-server-link");
+    if (!link) return;
+    isAdmin(user).then(function (admin) { link.hidden = !admin; });
   }
 
   // Populates the header's name label and avatar initials from the
@@ -106,6 +124,7 @@ window.NW = (function () {
       if (nameLabel) nameLabel.textContent = email.split("@")[0];
       if (avatarBtn) avatarBtn.textContent = email.slice(0, 2).toUpperCase();
       initUsersNavVisibility(user);
+      initCreateServerVisibility(user);
     }).catch(function () { /* leave header blank if this fails */ });
   }
 
@@ -150,5 +169,5 @@ window.NW = (function () {
     });
   });
 
-  return { colors: colors, esc: esc, nf: nf, initials: initials, url: url };
+  return { colors: colors, esc: esc, nf: nf, initials: initials, url: url, isAdmin: isAdmin };
 })();
