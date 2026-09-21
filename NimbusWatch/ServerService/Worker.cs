@@ -10,13 +10,15 @@ namespace ServerService
     private readonly IHardwareReader hardwareReader;
     private readonly IConfigReader configReader;
     private readonly HttpClient httpClient;
+    private readonly IServiceInfoFetcher serviceInfoFetcher;
 
-    public Worker(ILogger<Worker> logger, IHardwareReader hardwareReader, IConfigReader configReader, IHttpClientFactory factory)
+    public Worker(ILogger<Worker> logger, IHardwareReader hardwareReader, IConfigReader configReader, IHttpClientFactory factory, IServiceInfoFetcher serviceInfoFetcher)
     {
       this.logger = logger;
       this.hardwareReader = hardwareReader;
       this.configReader = configReader;
-      this.httpClient = factory.CreateClient("ApiClient");
+      this.serviceInfoFetcher = serviceInfoFetcher;
+      httpClient = factory.CreateClient("ApiClient");
     }
 
     private DateTime lastReadTime;
@@ -89,7 +91,7 @@ namespace ServerService
         RamTotal = memoryUsage.totalRam,
         DiskRemainingSpace = diskUsage.RemainingDisk,
         DiskTotalSpace = diskUsage.totalDisk,
-        ServiceId = 1, // need to get the id from the token or config
+        ServiceId = serviceInfoFetcher.ServiceId,
       };
 
       var json = JsonSerializer.Serialize(serviceDto, AppJsonSerializerContext.Default.CompanyHardwareDataDto);

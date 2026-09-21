@@ -211,6 +211,7 @@ namespace NimbusWatchApi.Database
         DiskRemainingSpace DOUBLE NOT NULL,
         RamUsage DOUBLE NOT NULL,
         RamTotal DOUBLE NOT NULL,
+        CreatedAt DATETIME NOT NULL,
         CONSTRAINT `FK_{tableName}_Companys_CompanyId`
           FOREIGN KEY (CompanyId) REFERENCES companys(Id)
           ON DELETE CASCADE,

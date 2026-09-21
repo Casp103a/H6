@@ -11,7 +11,7 @@ namespace ServerService.Logic
 
   internal class ConfigReader : IConfigReader
   {
-    private readonly string configFilePath = "service_config.json";
+    private readonly string configFileName = "service_config.config";
 
     public ServiceConfiguration Configuration { get; }
     private readonly ILogger<ConfigReader> logger;
@@ -26,7 +26,7 @@ namespace ServerService.Logic
     {
       // Use ProgramData for service configuration
       var configDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "NimbusWatch");
-      var configFilePath = Path.Combine(configDir, "service_config.json");
+      var configFilePath = Path.Combine(configDir, configFileName);
 
       if (!File.Exists(configFilePath))
       {
@@ -41,7 +41,7 @@ namespace ServerService.Logic
 
         var decryptedJson = new EncryptingService().DecryptForFile(file);
 
-        var config = JsonSerializer.Deserialize<ServiceConfiguration>(decryptedJson, AppJsonSerializerContext.Default.ServiceConfiguration);
+        var config = JsonSerializer.Deserialize(decryptedJson, AppJsonSerializerContext.Default.ServiceConfiguration);
 
         return config ?? new ServiceConfiguration();
       }
