@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none" role="img" aria-label="Nimbus Watch">
+  <g transform="translate(60 60) scale(0.86) translate(-60 -60) translate(-4 2)">
+    <g transform="rotate(-45 60 60)">
+      <circle cx="60" cy="13" r="4" fill="#2b2925"></circle>
+      <path d="M55 13 L65 13 L67 74 L53 74 Z" fill="#2b2925"></path>
+      <path d="M52 74 L68 74 L86 114 Q60 104 34 114 Z" fill="#c8ab7e"></path>
+      <circle cx="50" cy="36" r="9" fill="#fbfaf7" stroke="#2b2925" stroke-width="3"></circle>
+      <circle cx="69" cy="33" r="9" fill="#fbfaf7" stroke="#2b2925" stroke-width="3"></circle>
+      <circle cx="52" cy="37" r="3.6" fill="#2b2925"></circle>
+      <circle cx="71" cy="34" r="3.6" fill="#2b2925"></circle>
+    </g>
+  </g>
+</svg>

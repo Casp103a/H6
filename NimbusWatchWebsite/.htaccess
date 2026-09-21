@@ -1,0 +1,10 @@
+RewriteEngine On
+
+# Company-scoped URLs: /{companyName}/index.php, /{companyName}/users.php, etc.
+# are served from the real file at the site root — there's no per-company
+# folder on disk, the company name is just a visible path segment. Assets
+# are referenced with absolute paths (/assets/...) so they keep resolving
+# regardless of how deep the current page's URL looks.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^[^/]+/([A-Za-z0-9_-]+\.php)$ $1 [L]

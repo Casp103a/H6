@@ -1,0 +1,40 @@
+/* ==========================================================================
+   Users admin — shared across users.php (list), user-create.php,
+   user-detail.php and profile.php, same list/detail pattern as the fleet
+   overview. Reuses .card, .data-table, .status-pill, .back-link etc. from
+   dashboard.css rather than redefining them.
+   ========================================================================== */
+
+.user-table-card { overflow: hidden; }
+
+.user-row { cursor: pointer; }
+.user-row td { padding: 11px 18px; }
+
+.user-detail { padding: 24px 28px 40px; max-width: 720px; }
+
+.user-identity { display: flex; align-items: center; gap: 16px; margin: 8px 0 24px; }
+.user-identity__avatar { width: 56px; height: 56px; font-size: 18px; flex: none; }
+.user-identity__name-row { display: flex; align-items: center; gap: 10px; }
+
+.user-info-card { padding: 18px; }
+.user-info-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    margin-top: 0; padding-top: 0; border-top: none;
+}
+
+/* The create form is a standalone task, not part of the left-anchored
+   content column the rest of the app uses — center it on the page. */
+#user-create-view, #user-detail-view, #profile-view { max-width: 480px; margin: 0 auto; }
+.user-create-title, .user-detail-title { margin: 4px 0 20px; text-align: center; }
+
+.user-form { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.user-form__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+@media (max-width: 900px) {
+    .user-detail { padding: 16px 16px 32px; max-width: none; }
+}
+
+@media (max-width: 480px) {
+    .user-form { padding: 16px; }
+    .user-identity { gap: 12px; }
+}
