@@ -35,6 +35,32 @@ window.NWApi = (function () {
     });
   }
 
+  // For endpoints that respond with a raw file body (e.g. application/
+  // octet-stream) instead of JSON. Mirrors rawRequest/request below but
+  // resolves the successful body as a Blob; an error response is still
+  // read as JSON for its message, same as the JSON path.
+  function rawRequestBlob(method, path, body) {
+    var opts = {
+      method: method,
+      credentials: "include",
+      headers: {}
+    };
+    if (body !== undefined) {
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(body);
+    }
+    return fetch(BASE_URL + path, opts).then(function (res) {
+      if (!res.ok) {
+        return res.json().catch(function () { return null; }).then(function (data) {
+          return { res: res, data: data, blob: null };
+        });
+      }
+      return res.blob().then(function (blob) {
+        return { res: res, data: null, blob: blob };
+      });
+    });
+  }
+
   function toError(res, data) {
     var err = new Error((data && data.message) || res.statusText || ("HTTP " + res.status));
     err.status = res.status;
@@ -88,10 +114,25 @@ window.NWApi = (function () {
     });
   }
 
+  function requestBlob(method, path, body, isRetry) {
+    return rawRequestBlob(method, path, body).then(function (r) {
+      if (r.res.status === 204) return null;
+      if (r.res.ok) return r.blob;
+      if (r.res.status === 401 && !isRetry && !skipsRefresh(path)) {
+        return sharedRefresh().then(function (ok) {
+          if (!ok) throw toError(r.res, r.data);
+          return requestBlob(method, path, body, true);
+        });
+      }
+      throw toError(r.res, r.data);
+    });
+  }
+
   return {
     get: function (path) { return request("GET", path); },
     post: function (path, body) { return request("POST", path, body); },
     put: function (path, body) { return request("PUT", path, body); },
+    postBlob: function (path, body) { return requestBlob("POST", path, body); },
     validateToken: validateToken,
     refreshToken: refreshToken,
     ensureSession: ensureSession

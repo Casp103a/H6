@@ -34,7 +34,7 @@ $pageTitle = 'Serverovervågning';
                 <div>
                     <h1 class="grid-view__title">Servere</h1>
                     <span id="fleet-count-grid" class="grid-view__count"></span>
-                    <a href="<?= htmlspecialchars(nw_url('create-server.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--primary-soft">Tilføj server</a>
+                    <a id="create-server-link" href="<?= htmlspecialchars(nw_url('create-server.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--primary-soft" hidden>Tilføj server</a>
                 </div>
                 <div id="fleet-tally-grid" class="fleet-tally fleet-tally--grid"></div>
             </div>
@@ -92,7 +92,7 @@ $pageTitle = 'Serverovervågning';
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th class="is-left">Måling</th>
+                                    <th class="is-left">Tidspunkt</th>
                                     <th class="is-right">CPU</th>
                                     <th class="is-right">Hukommelse</th>
                                     <th class="is-right">Disk</th>

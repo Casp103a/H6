@@ -89,4 +89,14 @@
 
     loadUsers();
   });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    NWApi.get("/user/GetCurrentUserInfo").then(function (user) {
+      return NW.isAdmin(user);
+    }).catch(function () {
+      return false;
+    }).then(function (admin) {
+      if (admin) { initPage(); } else { window.location.href = NW.url("index.php"); }
+    });
+  });
 })();

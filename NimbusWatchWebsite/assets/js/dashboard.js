@@ -1,13 +1,21 @@
 /* ==========================================================================
-   Server monitoring dashboard — loads real data from
-   GET /api/CompanyHardwareData/GetAll/{companyId} (companyId comes from
-   GET /api/company first, same pattern as users.js/create-server.js).
-   That endpoint has no join to the serviceclients table, so it returns no
-   serverName/ipAddress — only a ServiceId. Until a backend endpoint exists
-   for that, servers are labelled "Service {ServiceId}" with ipAddress "—".
-   It's also a raw insert log (one row per reading, no update/upsert): the
-   latest row per ServiceId is the fleet/gauge snapshot, and the recent rows
-   before it feed the per-server trend chart — see mapHardwareRows/renderTrend.
+   Server monitoring dashboard — loads real data in two steps (companyId
+   comes from GET /api/company first, same pattern as users.js/create-
+   server.js):
+     1. GET /api/ServerService/GetAll/{companyId} — the fleet roster:
+        ServiceInfoDto { serverName, ipAddress, clientId } per service
+        client. clientId is the GUID identity (ServiceClientModel.ClientId),
+        used as this app's server id from here on (State.selected, data-id
+        attributes, State.history keys — all GUID strings, not the old int
+        ServiceId).
+     2. For each of those, GET /api/CompanyHardwareData/GetHardwareData/
+        {companyId}?clientId={clientId} — that one server's reading history
+        (server-side, it resolves clientId to the int ServiceId internally
+        and filters on that). It's an insert-only log (one row per reading,
+        no update/upsert), so the latest reading is the fleet/gauge
+        snapshot and the recent ones before it feed the trend chart — see
+        buildServer/renderTrend. A server with no readings yet just gets an
+        empty history (trend chart hidden, gauges show 0).
    ========================================================================== */
 (function () {
   "use strict";
@@ -39,7 +47,7 @@
   };
   var GAUGE_CPU_WARN = 60, GAUGE_CPU_CRIT = 85;
 
-  var POLL_MS = 15000; // real network calls, not a client-side generator — no need for a 2.2s cadence
+  var POLL_MS = 60000; // real network calls, not a client-side generator — no need for a 2.2s cadence
 
   var State = { servers: [], history: {}, selected: null, live: true, view: "grid", companyId: null, trendView: "chart" };
 
@@ -67,6 +75,15 @@
   // Disk used as a percentage of total (total minus remaining, over total), same divide-by-zero guard as ramPct.
   function diskUsedPct(s) {
     return s.diskTotalSpace ? clamp(((s.diskTotalSpace - s.diskRemainingSpace) / s.diskTotalSpace) * 100, 0, 100) : 0;
+  }
+
+  // A reading's CreatedAt as "DD/MM HH:MM:SS" — the trend window can span
+  // more than one day, so it's not time-only like renderClock's header clock.
+  function formatTimestamp(date) {
+    if (!date || isNaN(date.getTime())) return "—";
+    var pad = function (n) { return String(n).padStart(2, "0"); };
+    return pad(date.getDate()) + "/" + pad(date.getMonth() + 1) + " " +
+      pad(date.getHours()) + ":" + pad(date.getMinutes()) + ":" + pad(date.getSeconds());
   }
 
   // Classifies a server as OK/Advarsel/Kritisk from its CPU/RAM/disk against THRESHOLDS, worst metric wins.
@@ -114,7 +131,7 @@
     var label = document.getElementById("live-label");
     var pauseBtn = document.getElementById("pause-btn");
     dot.className = "live-status__dot" + (State.live ? "" : " live-status__dot--paused");
-    label.textContent = State.live ? "Live · opdaterer hvert 15. sekund" : "Opdatering sat på pause";
+    label.textContent = State.live ? "Live · opdaterer hvert 60. sekund" : "Opdatering sat på pause";
     dot.title = label.textContent;
     pauseBtn.querySelector(".btn-label").textContent = State.live ? "Pause" : "Genoptag";
   }
@@ -169,8 +186,8 @@
         '<span class="server-row__sub">' + esc(s.ipAddress) + '</span>' +
         '</span>' +
         '<span class="server-row__metrics">' +
-        '<span class="server-row__cpu" style="color:' + st.color + '">' + nf(s.cpuUsage, 0) + ' %</span>' +
-        '<span class="server-row__secondary">' + nf(diskUsedPct(s), 0) + ' % disk</span>' +
+        '<span class="server-row__cpu" style="color:' + st.color + '">' + nf(s.cpuUsage, 0) + ' % CPU</span>' +
+        '<span class="server-row__secondary">' + nf(diskUsedPct(s), 0) + ' % Disk</span>' +
         '</span>' +
         '</button>';
     }).join("");
@@ -247,7 +264,7 @@
   }
 
   // Shows the chart or the table (never both) per State.trendView, without
-  // touching their content — so toggling doesn't fight the 15s poll re-render.
+  // touching their content — so toggling doesn't fight the 60s poll re-render.
   function applyTrendView() {
     var isTable = State.trendView === "table";
     document.getElementById("trend-chart-wrap").hidden = isTable;
@@ -280,7 +297,7 @@
     applyTrendView();
 
     var points = history.map(function (h) {
-      return { cpu: h.cpuUsage, ram: ramPct(h), disk: diskUsedPct(h) };
+      return { cpu: h.cpuUsage, ram: ramPct(h), disk: diskUsedPct(h), time: h.createdAt };
     });
 
     var chartWidth = 640, chartHeight = 200;
@@ -343,7 +360,7 @@
       crosshairLine.setAttribute("x2", xForReading(readingIndex).toFixed(1));
 
       tooltip.innerHTML =
-        '<div class="trend-tooltip__title">Måling ' + (readingIndex + 1) + ' af ' + points.length + '</div>' +
+        '<div class="trend-tooltip__title">' + esc(formatTimestamp(p.time)) + '</div>' +
         TREND_SERIES.map(function (series) {
           return '<div class="trend-tooltip__row">' +
             '<span class="trend-tooltip__row-label"><span class="trend-tooltip__key" style="background:' + series.color + '"></span>' + esc(series.label) + '</span>' +
@@ -366,9 +383,9 @@
     hitRect.addEventListener("mousemove", function (e) { showTooltip(nearestReadingIndex(e.clientX), e.clientX); });
     hitRect.addEventListener("mouseleave", hideTooltip);
 
-    document.getElementById("trend-table-body").innerHTML = points.map(function (p, i) {
+    document.getElementById("trend-table-body").innerHTML = points.map(function (p) {
       return '<tr>' +
-        '<td>Måling ' + (i + 1) + '</td>' +
+        '<td>' + esc(formatTimestamp(p.time)) + '</td>' +
         '<td class="is-right">' + nf(p.cpu, 0) + ' %</td>' +
         '<td class="is-right">' + nf(p.ram, 0) + ' %</td>' +
         '<td class="is-right">' + nf(p.disk, 0) + ' %</td>' +
@@ -389,63 +406,85 @@
     });
   }
 
+  // The fleet roster: every service client the company has, with its real
+  // name/ip and GUID clientId. Never rejects — a failure just means an
+  // empty fleet (same as a company with no servers yet).
+  function loadServerInfo(companyId) {
+    return NWApi.get("/ServerService/GetAll/" + companyId).then(function (rows) {
+      return rows || [];
+    }).catch(function () {
+      return [];
+    });
+  }
+
+  // One server's reading history, by its GUID clientId. Never rejects — a
+  // failure (or a server that hasn't reported yet) just means no history,
+  // same as a freshly-added server.
+  function loadHardwareData(companyId, clientId) {
+    return NWApi.get("/CompanyHardwareData/GetHardwareData/" + companyId + "?clientId=" + encodeURIComponent(clientId)).then(function (rows) {
+      return rows || [];
+    }).catch(function () {
+      return [];
+    });
+  }
+
   // How many recent readings the trend chart keeps per server — a company
   // can have arbitrarily many historical rows in companyhardwaredata; the
   // chart only needs a recent-trend window, not the full log.
   var HISTORY_LIMIT = 30;
 
-  // companyhardwaredata has no serverName/ipAddress and is an insert-only
-  // log (one row per reading, no update/upsert), so this groups rows by
-  // ServiceId, keeps the most recent HISTORY_LIMIT per service (oldest
-  // first) for the trend chart, and treats the last one as that server's
-  // current snapshot for the fleet list/gauges.
-  function mapHardwareRows(rows) {
-    var byService = {};
-    rows.forEach(function (row) {
-      (byService[row.serviceId] = byService[row.serviceId] || []).push(row);
+  // Combines one server's roster info with its reading history into the
+  // shapes render()/mapHardwareRows' old callers expect: keeps the most
+  // recent HISTORY_LIMIT readings (oldest first) for the trend chart, and
+  // treats the last one as that server's current snapshot for the fleet
+  // list/gauges. A server with no readings yet gets zeroed-out gauges and
+  // an empty trend history (renderTrend already handles history.length < 2).
+  function buildServer(info, readings) {
+    var trimmed = readings.slice().sort(function (a, b) { return a.id - b.id; });
+    if (trimmed.length > HISTORY_LIMIT) trimmed = trimmed.slice(trimmed.length - HISTORY_LIMIT);
+
+    var history = trimmed.map(function (row) {
+      return {
+        cpuUsage: row.cpuUsages,
+        ramUsage: row.ramUsage / 1024,
+        ramTotal: row.ramTotal / 1024,
+        diskTotalSpace: row.diskTotalSpace,
+        diskRemainingSpace: row.diskRemainingSpace,
+        createdAt: row.createdAt ? new Date(row.createdAt) : null
+      };
     });
 
-    var servers = [];
-    var history = {};
-    Object.keys(byService).forEach(function (serviceId) {
-      var readings = byService[serviceId].sort(function (a, b) { return a.id - b.id; });
-      if (readings.length > HISTORY_LIMIT) readings = readings.slice(readings.length - HISTORY_LIMIT);
+    var latest = history[history.length - 1] || { cpuUsage: 0, ramUsage: 0, ramTotal: 0, diskTotalSpace: 0, diskRemainingSpace: 0 };
 
-      var mapped = readings.map(function (row) {
-        return {
-          cpuUsage: row.cpuUsages,
-          ramUsage: row.ramUsage / 1024,
-          ramTotal: row.ramTotal / 1024,
-          diskTotalSpace: row.diskTotalSpace,
-          diskRemainingSpace: row.diskRemainingSpace
-        };
-      });
-      history[serviceId] = mapped;
-
-      var latest = mapped[mapped.length - 1];
-      servers.push({
-        id: Number(serviceId),
-        serverName: "Service " + serviceId,
-        ipAddress: "—",
+    return {
+      server: {
+        id: info.clientId,
+        serverName: info.serverName,
+        ipAddress: info.ipAddress,
         cpuUsage: latest.cpuUsage,
         ramUsage: latest.ramUsage,
         ramTotal: latest.ramTotal,
         diskTotalSpace: latest.diskTotalSpace,
         diskRemainingSpace: latest.diskRemainingSpace
-      });
-    });
-
-    return { servers: servers, history: history };
+      },
+      history: history
+    };
   }
 
   function loadServers() {
     setFleetStatus("Indlæser servere…");
     return ensureCompanyId().then(function (companyId) {
-      return NWApi.get("/CompanyHardwareData/GetAll/" + companyId);
-    }).then(function (rows) {
-      var mapped = mapHardwareRows(rows || []);
-      State.servers = mapped.servers;
-      State.history = mapped.history;
+      return loadServerInfo(companyId).then(function (serverInfoList) {
+        return Promise.all(serverInfoList.map(function (info) {
+          return loadHardwareData(companyId, info.clientId).then(function (readings) {
+            return buildServer(info, readings);
+          });
+        }));
+      });
+    }).then(function (built) {
+      State.servers = built.map(function (b) { return b.server; });
+      State.history = {};
+      built.forEach(function (b) { State.history[b.server.id] = b.history; });
       if (State.selected == null || !getSelected()) {
         State.selected = State.servers.length ? State.servers[0].id : null;
       }
@@ -454,6 +493,25 @@
       render();
     }).catch(function (err) {
       setFleetStatus("Kunne ikke hente servere: " + err.message);
+    });
+  }
+
+  // Refetches just one server's own reading history (not the whole fleet)
+  // and re-renders — used when opening/switching to a server's detail view,
+  // so it shows its newest data right away instead of whatever the last
+  // 15s fleet poll happened to have. Reuses its already-known serverName/
+  // ipAddress/clientId from State.servers rather than re-fetching the roster.
+  function refreshServerData(clientId) {
+    var existing = getSelected();
+    if (!existing || existing.id !== clientId || !State.companyId) return;
+
+    return loadHardwareData(State.companyId, clientId).then(function (readings) {
+      var built = buildServer({ clientId: clientId, serverName: existing.serverName, ipAddress: existing.ipAddress }, readings);
+      var index = State.servers.findIndex(function (s) { return s.id === clientId; });
+      if (index === -1) return;
+      State.servers[index] = built.server;
+      State.history[clientId] = built.history;
+      render();
     });
   }
 
@@ -473,15 +531,17 @@
     document.getElementById("server-list").addEventListener("click", function (e) {
       var btn = e.target.closest("[data-id]");
       if (!btn) return;
-      State.selected = parseInt(btn.getAttribute("data-id"), 10);
+      State.selected = btn.getAttribute("data-id");
       render();
+      refreshServerData(State.selected);
     });
     document.getElementById("fleet-grid").addEventListener("click", function (e) {
       var btn = e.target.closest("[data-id]");
       if (!btn) return;
-      State.selected = parseInt(btn.getAttribute("data-id"), 10);
+      State.selected = btn.getAttribute("data-id");
       setView("detail");
       render();
+      refreshServerData(State.selected);
     });
     document.getElementById("back-to-grid").addEventListener("click", function () {
       setView("grid");
