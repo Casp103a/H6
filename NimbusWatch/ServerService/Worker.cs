@@ -11,13 +11,15 @@ namespace ServerService
     private readonly IConfigReader configReader;
     private readonly HttpClient httpClient;
     private readonly IServiceInfoFetcher serviceInfoFetcher;
+    private readonly IServiceReader serviceReader;
 
-    public Worker(ILogger<Worker> logger, IHardwareReader hardwareReader, IConfigReader configReader, IHttpClientFactory factory, IServiceInfoFetcher serviceInfoFetcher)
+    public Worker(ILogger<Worker> logger, IHardwareReader hardwareReader, IConfigReader configReader, IHttpClientFactory factory, IServiceInfoFetcher serviceInfoFetcher, IServiceReader serviceReader)
     {
       this.logger = logger;
       this.hardwareReader = hardwareReader;
       this.configReader = configReader;
       this.serviceInfoFetcher = serviceInfoFetcher;
+      this.serviceReader = serviceReader;
       httpClient = factory.CreateClient("ApiClient");
     }
 
@@ -41,7 +43,7 @@ namespace ServerService
           }
           catch (Exception ex)
           {
-            logger.LogError(ex, "Failed to collect or report hardware readings");
+            logger.LogError(ex, $"Failed to collect or report hardware readings inner ex {ex.InnerException}");
           }
 
           await Task.Delay(1000, stoppingToken);
@@ -103,6 +105,25 @@ namespace ServerService
       if (!response.IsSuccessStatusCode)
       {
         logger.LogError("Failed to report hardware data: {statusCode}", response.StatusCode);
+      }
+
+      var statuses = serviceReader.LookAtStatuses();
+
+      if (statuses.Count > 0)
+      {
+        var report = new ServiceReportDto
+        {
+          Statuses = statuses,
+          ServerId = serviceInfoFetcher.ServiceId,
+        };
+
+        var reportJson = JsonSerializer.Serialize(report, AppJsonSerializerContext.Default.ServiceReportDto);
+        var reportResponse = await httpClient.PostAsync($"api/ServiceStatus/Add/{configReader.Configuration.CompanyId}", new StringContent(reportJson, System.Text.Encoding.UTF8, "application/json"));
+
+        if (!reportResponse.IsSuccessStatusCode)
+        {
+          logger.LogError("Failed to report service statuses: {statusCode}", reportResponse.StatusCode);
+        }
       }
 
       return;
