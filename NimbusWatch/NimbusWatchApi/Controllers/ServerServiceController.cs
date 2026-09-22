@@ -39,6 +39,11 @@ namespace NimbusWatchApi.Controllers
           CompanyId = Guid.Parse(client.CompanyId),
           ServerName = client.Name,
           ReportFrequencyInMilliSec = 60000, // Default to 60 secondss
+
+          Services = client.ServicesToMonitor.Select(s => new ServerServicesInfo
+          {
+            Name = s.Name,
+          }).ToList(),
         };
 
         var json = JsonSerializer.Serialize(config, new JsonSerializerOptions

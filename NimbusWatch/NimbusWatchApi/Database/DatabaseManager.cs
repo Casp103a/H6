@@ -12,6 +12,7 @@ namespace NimbusWatchApi.Database
     IRoleTableManager Roles { get; }
     IServiceClientTableManager ServiceClients { get; }
     ICompanyHardwareDataTableManager CompanyHardwareData { get; }
+    ICompanyServiceStatusTableManager CompanyServiceStatus { get; }
 
     Task EnsureCompanyTables(string companyId);
     Task SetupDatabase(CancellationToken cancellationToken = default);
@@ -30,6 +31,7 @@ namespace NimbusWatchApi.Database
       Roles = new RoleTableManager(_connectionString);
       ServiceClients = new ServiceClientTableManager(_connectionString);
       CompanyHardwareData = new CompanyHardwareDataTableManager(_connectionString);
+      CompanyServiceStatus = new CompanyServiceStatusTableManager(_connectionString);
     }
 
     public IRefreshTokenTableManager RefreshTokens { get; }
@@ -38,6 +40,7 @@ namespace NimbusWatchApi.Database
     public IRoleTableManager Roles { get; }
     public IServiceClientTableManager ServiceClients { get; }
     public ICompanyHardwareDataTableManager CompanyHardwareData { get; }
+    public ICompanyServiceStatusTableManager CompanyServiceStatus { get; }
 
     public async Task SetupDatabase(CancellationToken cancellationToken = default)
     {
@@ -171,12 +174,16 @@ namespace NimbusWatchApi.Database
     {
       var serviceClientsTable = CompanyTableNames.ServiceClients(companyId);
       var hardwareDataTable = CompanyTableNames.HardwareData(companyId);
+      var serviceStatusesTable = CompanyTableNames.ServiceStatuses(companyId);
 
       if (!await TableExists(serviceClientsTable))
         await CreateServiceClientTable(serviceClientsTable);
 
       if (!await TableExists(hardwareDataTable))
         await CreateCompanyHardwareDataTable(hardwareDataTable, serviceClientsTable);
+
+      if (!await TableExists(serviceStatusesTable))
+        await CreateCompanyServiceStatuses(serviceStatusesTable, serviceClientsTable);
     }
 
     private async Task CreateServiceClientTable(string tableName)
@@ -219,6 +226,22 @@ namespace NimbusWatchApi.Database
           ON DELETE CASCADE,
         CONSTRAINT `FK_{tableName}_ServiceClients_ServiceId`
           FOREIGN KEY (ServiceId) REFERENCES `{serviceClientsTable}`(Id)
+          ON DELETE CASCADE
+        );
+        """);
+    }
+
+    private async Task CreateCompanyServiceStatuses(string tableName, string serviceClientsTable)
+    {
+      await ExecuteNonQuery($"""
+        CREATE TABLE `{tableName}` (
+        Id INT AUTO_INCREMENT PRIMARY KEY,
+        ServerId INT NOT NULL,
+        Name VARCHAR(255) NOT NULL,
+        Status VARCHAR(255) NOT NULL,
+        CreatedAt DATETIME NOT NULL,
+        CONSTRAINT `FK_{tableName}_ServiceClients_ServerId`
+          FOREIGN KEY (ServerId) REFERENCES `{serviceClientsTable}`(Id)
           ON DELETE CASCADE
         );
         """);
