@@ -5,20 +5,40 @@ namespace ServerService.Logic
 {
   public interface IHardwareReader
   {
-    double ReadCpuTemperature();
     double ReadCpuUsage();
     (double useRam, double totalRam) ReadMemoryUsage();
     (long RemainingDisk, long totalDisk) ReadDiskUsage();
+    (long bytesSend, long bytesReceived) ReadNetworkUsage();
   }
 
   public partial class HardwareReader : IHardwareReader
   {
     private readonly PerformanceCounter? cpuCounter;
+    private readonly PerformanceCounter? networkSentCounter;
+    private readonly PerformanceCounter? networkRecvCounter;
+    private readonly ILogger<HardwareReader> logger;
 
-    public HardwareReader()
+    public HardwareReader(ILogger<HardwareReader> logger)
     {
+      this.logger = logger;
       try
       {
+        var category = new PerformanceCounterCategory("Network Interface");
+        var instanceNames = category.GetInstanceNames();
+
+        var instanceName = instanceNames
+          .FirstOrDefault(n => n.Contains("Wi-Fi", StringComparison.OrdinalIgnoreCase)
+                            || n.Contains("WiFi", StringComparison.OrdinalIgnoreCase)
+                            || n.Contains("MediaTek", StringComparison.OrdinalIgnoreCase));
+
+        if (instanceName is null)
+        {
+          logger.LogWarning("No network interface found matching criteria");
+        }
+
+        networkSentCounter = new PerformanceCounter("Network Interface", "Bytes Sent/sec", instanceName);
+        networkRecvCounter = new PerformanceCounter("Network Interface", "Bytes Received/sec", instanceName);
+
         cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total", readOnly: true);
         cpuCounter.NextValue(); // prime; first sample is always 0
       }
@@ -26,20 +46,6 @@ namespace ServerService.Logic
       {
         cpuCounter = null; // category missing or access denied
       }
-    }
-
-    public double ReadCpuTemperature()
-    {
-      var cpuTemperature = new PerformanceCounter("Thermal Zone Information", "Temperature", @"\_TZ.THRM");
-      var temperatureValue = cpuTemperature.NextValue();
-
-      if (temperatureValue == 0)
-      {
-        Thread.Sleep(1000); // Wait a second to get a valid reading
-        temperatureValue = cpuTemperature.NextValue();
-      }
-
-      return temperatureValue;
     }
 
     public double ReadCpuUsage()
@@ -102,6 +108,27 @@ namespace ServerService.Logic
       var remainingDisk = drives.Sum(d => d.AvailableFreeSpace) / (1024 * 1024 * 1024);
 
       return (remainingDisk, totalDisk);
+    }
+
+    public (long bytesSend, long bytesReceived) ReadNetworkUsage()
+    {
+      if (networkSentCounter is null || networkRecvCounter is null)
+      {
+        return (0, 0);
+      }
+
+      try
+      {
+        var sent = networkSentCounter.NextValue();
+        var recv = networkRecvCounter.NextValue();
+
+        return ((long)sent, (long)recv);
+      }
+      catch (Exception ex)
+      {
+        logger.LogError(ex, "Error reading network usage");
+        return (0, 0);
+      }
     }
   }
 }

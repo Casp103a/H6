@@ -77,11 +77,11 @@ namespace ServerService
     private async Task ReportReadings()
     {
       var cpuUsage = hardwareReader.ReadCpuUsage();
-      //var cpuTemperature = hardwareReader.ReadCpuTemperature();
       var memoryUsage = hardwareReader.ReadMemoryUsage();
       var diskUsage = hardwareReader.ReadDiskUsage();
       var serverName = configReader.Configuration.ServerName;
       var companyId = configReader.Configuration.CompanyId;
+      var networkUsage = hardwareReader.ReadNetworkUsage();
 
       var serviceDto = new CompanyHardwareDataDto
       {
@@ -91,6 +91,8 @@ namespace ServerService
         RamTotal = memoryUsage.totalRam,
         DiskRemainingSpace = diskUsage.RemainingDisk,
         DiskTotalSpace = diskUsage.totalDisk,
+        NetworkBytesSent = networkUsage.bytesSend,
+        NetworkBytesReceived = networkUsage.bytesReceived,
         ServiceId = serviceInfoFetcher.ServiceId,
       };
 

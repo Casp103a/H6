@@ -36,6 +36,8 @@ namespace NimbusWatchApi.Managers
           DiskRemainingSpace = data.DiskRemainingSpace,
           RamUsage = data.RamUsage,
           RamTotal = data.RamTotal,
+          NetworkBytesSent = data.NetworkBytesSent,
+          NetworkBytesReceived = data.NetworkBytesReceived,
           CreatedAt = DateTime.UtcNow
         };
 
