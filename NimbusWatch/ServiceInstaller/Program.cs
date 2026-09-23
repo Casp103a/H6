@@ -36,7 +36,14 @@ namespace ServiceInstaller
 
       if (ServiceExists(ServiceName))
       {
-        RunSc("stop", ServiceName);
+        // Only stop the service if it is actually running (or paused)
+        var state = GetServiceState(ServiceName);
+        if (state is "RUNNING" or "PAUSED")
+        {
+          RunSc("stop", ServiceName);
+          WaitForServiceState(ServiceName, "STOPPED", TimeSpan.FromSeconds(30));
+        }
+
         RunSc("delete", ServiceName);
         Thread.Sleep(2000);
       }
@@ -84,6 +91,59 @@ namespace ServiceInstaller
       using var process = Process.Start(psi)!;
       process.WaitForExit();
       return process.ExitCode == 0;
+    }
+
+    // Returns the service state (e.g. "RUNNING", "STOPPED", "STOP_PENDING") or null if unknown
+    static string? GetServiceState(string serviceName)
+    {
+      var psi = new ProcessStartInfo("sc.exe", $"query \"{serviceName}\"")
+      {
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false,
+        CreateNoWindow = true
+      };
+
+      using var process = Process.Start(psi)!;
+      var stdout = process.StandardOutput.ReadToEnd();
+      process.WaitForExit();
+
+      if (process.ExitCode != 0)
+      {
+        return null;
+      }
+
+      // Example line: "        STATE              : 4  RUNNING"
+      foreach (var line in stdout.Split('\n'))
+      {
+        var trimmed = line.Trim();
+        if (!trimmed.StartsWith("STATE", StringComparison.OrdinalIgnoreCase))
+        {
+          continue;
+        }
+
+        var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 4 ? parts[3].ToUpperInvariant() : null;
+      }
+
+      return null;
+    }
+
+    static void WaitForServiceState(string serviceName, string desiredState, TimeSpan timeout)
+    {
+      var stopwatch = Stopwatch.StartNew();
+      while (stopwatch.Elapsed < timeout)
+      {
+        if (GetServiceState(serviceName) == desiredState)
+        {
+          return;
+        }
+
+        Thread.Sleep(500);
+      }
+
+      throw new TimeoutException(
+        $"Service '{serviceName}' did not reach state '{desiredState}' within {timeout.TotalSeconds} seconds.");
     }
 
     static void RunSc(string command, string arguments)

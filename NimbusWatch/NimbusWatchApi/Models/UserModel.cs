@@ -25,5 +25,8 @@ namespace NimbusWatchApi.Models
 
     [Required]
     public string CompanyId { get; set; }
+
+    [Required]
+    public Guid PublicId { get; set; }
   }
 }

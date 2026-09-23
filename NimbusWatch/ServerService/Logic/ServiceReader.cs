@@ -11,51 +11,63 @@ namespace ServerService.Logic
   internal class ServiceReader : IServiceReader
   {
     private readonly IConfigReader configReader;
-    private readonly List<ServiceController> controllers;
     private readonly ILogger<ServiceReader> logger;
+    private readonly object sync = new();
+    private List<ServiceController> controllers = [];
 
     public ServiceReader(IConfigReader configReader, ILogger<ServiceReader> logger)
     {
       this.configReader = configReader;
       this.logger = logger;
 
-      controllers = new List<ServiceController>();
       SetupControllers();
+      configReader.ConfigurationChanged += (_, _) => SetupControllers();
     }
 
     private void SetupControllers()
     {
-      controllers.Clear();
+      var newControllers = new List<ServiceController>();
       foreach (var serviceInfo in configReader.Configuration.Services)
       {
         try
         {
-          var controller = new ServiceController(serviceInfo.Name);
-          controllers.Add(controller);
+          newControllers.Add(new ServiceController(serviceInfo.Name));
         }
         catch (InvalidOperationException ex)
         {
-          logger.LogError(ex, $"Service '{serviceInfo.Name}' not found.");
+          logger.LogError(ex, "Service '{Name}' not found.", serviceInfo.Name);
         }
       }
+
+      List<ServiceController> old;
+      lock (sync)
+      {
+        old = controllers;
+        controllers = newControllers;
+      }
+
+      foreach (var c in old) c.Dispose();
+      logger.LogInformation("Monitored services reloaded ({Count}).", newControllers.Count);
     }
 
     public List<ServiceStatusesDto> LookAtStatuses()
     {
-      var reports = new List<ServiceStatusesDto>();
+      List<ServiceController> snapshot;
+      lock (sync) snapshot = controllers;
 
-      foreach (var controller in controllers)
+      var reports = new List<ServiceStatusesDto>();
+      foreach (var controller in snapshot)
       {
         try
         {
+          controller.Refresh(); // otherwise Status can be a stale cached value
           if (controller.Status != ServiceControllerStatus.Running)
           {
-            var report = new ServiceStatusesDto
+            reports.Add(new ServiceStatusesDto
             {
               Name = controller.DisplayName,
               Status = controller.Status.ToString()
-            };
-            reports.Add(report);
+            });
           }
         }
         catch (Exception)
@@ -63,7 +75,6 @@ namespace ServerService.Logic
           continue;
         }
       }
-
       return reports;
     }
   }

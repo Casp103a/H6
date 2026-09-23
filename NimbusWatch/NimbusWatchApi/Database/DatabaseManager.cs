@@ -132,7 +132,8 @@ namespace NimbusWatchApi.Database
         RoleId INT NOT NULL,
         IsActive BOOLEAN NOT NULL,
         CreatedAt DATETIME NOT NULL,
-        CompanyId VARCHAR(36) NOT NULL
+        CompanyId VARCHAR(36) NOT NULL,
+        PublicId VARCHAR(36) NOT NULL UNIQUE
         );
         """;
       await cmd.ExecuteNonQueryAsync();

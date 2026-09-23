@@ -1,56 +1,107 @@
 ﻿using ClassLibrary.Configuration;
+using ClassLibrary.Dtos.Configuration;
 using ClassLibrary.Services;
 using System.Text.Json;
 
 namespace ServerService.Logic
 {
-  public interface IConfigReader
-  {
-    public ServiceConfiguration Configuration { get; }
-  }
-
-  internal class ConfigReader : IConfigReader
-  {
-    private readonly string configFileName = "service_config.config";
-
-    public ServiceConfiguration Configuration { get; }
-    private readonly ILogger<ConfigReader> logger;
-
-    public ConfigReader(ILogger<ConfigReader> logger)
+    public interface IConfigReader
     {
-      this.logger = logger;
-      Configuration = ReadConfig();
+        ServiceConfiguration Configuration { get; }
+        event EventHandler<ServiceConfiguration>? ConfigurationChanged;
+        Task UpdateAsync(ConfigurationDto dto, CancellationToken cancellationToken = default);
     }
 
-    private ServiceConfiguration ReadConfig()
+    internal class ConfigReader : IConfigReader
     {
-      // Use ProgramData for service configuration
-      var configDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "NimbusWatch");
-      var configFilePath = Path.Combine(configDir, configFileName);
+        private readonly string _configFileName = "service_config.config";
+        private readonly SemaphoreSlim _lock = new(1, 1);
+        private readonly ILogger<ConfigReader> _logger;
 
-      if (!File.Exists(configFilePath))
-      {
-        var sad = new FileNotFoundException($"Configuration file not found: {configFilePath}");
-        logger.LogError(sad, "Configuration file not found.");
-        throw sad;
-      }
+        private ServiceConfiguration _configuration;
 
-      try
-      {
-        var file = File.ReadAllText(configFilePath);
+        public ServiceConfiguration Configuration => _configuration;
+        public event EventHandler<ServiceConfiguration>? ConfigurationChanged;
 
-        var decryptedJson = new EncryptingService().DecryptForFile(file);
+        public ConfigReader(ILogger<ConfigReader> logger)
+        {
+            _logger = logger;
+            _configuration = ReadConfig();
+        }
 
-        var config = JsonSerializer.Deserialize(decryptedJson, AppJsonSerializerContext.Default.ServiceConfiguration);
+        public async Task UpdateAsync(ConfigurationDto dto, CancellationToken cancellationToken = default)
+        {
+            await _lock.WaitAsync(cancellationToken);
+            try
+            {
+                _configuration.ReportFrequencyInMilliSec = dto.ReportFrequency;
+                _configuration.Services = dto.MonitoredServices ?? [];
 
-        return config ?? new ServiceConfiguration();
-      }
-      catch (Exception ex)
-      {
-        var exg = new InvalidOperationException($"Failed to read configuration from {configFilePath}", ex);
-        logger.LogError(exg, "An error occurred while reading the configuration.");
-        throw exg;
-      }
+                await SaveConfigAsync(_configuration, cancellationToken);
+            }
+            finally
+            {
+                _lock.Release();
+            }
+
+            ConfigurationChanged?.Invoke(this, _configuration);
+        }
+
+        private ServiceConfiguration ReadConfig()
+        {
+            var configDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "NimbusWatch");
+
+            var configFilePath = Path.Combine(configDir, _configFileName);
+
+            if (!File.Exists(configFilePath))
+            {
+                var ex = new FileNotFoundException($"Configuration file not found: {configFilePath}");
+                _logger.LogError(ex, "Configuration file not found.");
+                throw ex;
+            }
+
+            try
+            {
+                var file = File.ReadAllText(configFilePath);
+                var decryptedJson = new EncryptingService().DecryptForFile(file);
+
+                return JsonSerializer.Deserialize(
+                           decryptedJson,
+                           AppJsonSerializerContext.Default.ServiceConfiguration)
+                       ?? new ServiceConfiguration();
+            }
+            catch (Exception ex)
+            {
+                var wrapped = new InvalidOperationException(
+                    $"Failed to read configuration from {configFilePath}",
+                    ex);
+
+                _logger.LogError(wrapped, "An error occurred while reading the configuration.");
+                throw wrapped;
+            }
+        }
+
+        private async Task SaveConfigAsync(ServiceConfiguration configuration, CancellationToken cancellationToken)
+        {
+            var configDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "NimbusWatch");
+
+            Directory.CreateDirectory(configDir);
+
+            var configFilePath = Path.Combine(configDir, _configFileName);
+
+            var json = JsonSerializer.Serialize(
+                configuration,
+                AppJsonSerializerContext.Default.ServiceConfiguration);
+
+            var encryptedJson = new EncryptingService().EncryptForFile(json);
+
+            await File.WriteAllTextAsync(configFilePath, encryptedJson, cancellationToken);
+
+            _logger.LogInformation("Configuration updated and saved.");
+        }
     }
-  }
 }
