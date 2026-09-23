@@ -167,6 +167,15 @@ button, input { font: inherit; }
     background: oklch(from var(--nf-primary) calc(l - 0.1) c h);
 }
 
+/* ---------- Watch-list widget (create-server, server-config) ---------- */
+.watch-list__input-row { display: flex; gap: 8px; }
+.watch-list__input-row input { flex: 1; }
+.watch-list__items { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.watch-list__items:empty { margin: 0; }
+.watch-list__item { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 12px; border-radius: 999px; background: var(--nf-badge-neutral-bg); color: var(--nf-badge-neutral-fg); font-size: 13px; }
+.watch-list__item-remove { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: none; border-radius: 50%; background: transparent; cursor: pointer; color: inherit; opacity: .7; }
+.watch-list__item-remove:hover { opacity: 1; background: var(--nf-hover-bg); }
+
 /* ---------- Form fields (login, create-user, …) ---------- */
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field__label { font-size: 12px; font-weight: 600; color: var(--nf-text); }
@@ -228,30 +237,7 @@ button, input { font: inherit; }
 .avatar-menu__item:hover { background: var(--nf-menu-item-hover); text-decoration: none; color: var(--nf-text); }
 .avatar-menu__divider { height: 1px; background: var(--nf-divider); margin: 4px 2px; }
 
-/* ---------- Shell / grid ---------- */
-.layout {
-    display: grid;
-    grid-template-columns: 316px minmax(0, 1fr);
-    align-items: stretch;
-    min-width: 900px;
-}
-
-/* ---------- Sidebar ---------- */
-.sidebar {
-    border-right: 1px solid var(--nf-divider);
-    background: var(--nf-base-100);
-    min-height: calc(100vh - 56px);
-}
-.sidebar__heading {
-    display: flex; align-items: baseline; justify-content: space-between;
-    padding: 16px 16px 10px;
-}
-.sidebar__heading-label {
-    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
-    color: var(--nf-text-muted);
-}
-.sidebar__heading-count { font-size: 12px; color: var(--nf-text-muted); }
-
+/* ---------- Fleet tally (shared by the grid overview and the detail-view sidebar) ---------- */
 .fleet-tally {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
     margin: 0 16px 14px;
@@ -264,165 +250,11 @@ button, input { font: inherit; }
 .tally-cell__count { font-size: 18px; font-weight: 700; line-height: 1.1; }
 .tally-cell__label { font-size: 11px; color: var(--nf-text-muted); margin-top: 2px; }
 
-.server-list { display: flex; flex-direction: column; padding: 0 8px 24px; }
-.server-row {
-    display: grid; grid-template-columns: 8px minmax(0,1fr) auto;
-    align-items: center; gap: 10px;
-    width: 100%; text-align: left;
-    padding: 9px 10px;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    background: var(--nf-base-100);
-    cursor: pointer;
-    margin-bottom: 2px;
-    transition: var(--nf-transition);
-}
-.server-row:hover { border-color: var(--nf-border-color-hover); }
-.server-row--selected {
-    background: var(--nf-primary-light);
-    border-color: var(--nf-primary-border);
-}
-.server-row--selected:hover { border-color: var(--nf-primary-border); }
-.server-row__dot { width: 8px; height: 8px; border-radius: 999px; }
-.server-row__id { min-width: 0; }
-.server-row__name {
-    display: block; font-size: 13px; font-weight: 600; color: var(--nf-text-heading);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.server-row__sub { display: block; font-size: 11px; color: var(--nf-text-muted); margin-top: 1px; }
-.server-row__metrics { text-align: right; font-variant-numeric: tabular-nums; }
-.server-row__cpu { display: block; font-size: 12px; font-weight: 600; }
-.server-row__secondary { display: block; font-size: 11px; color: var(--nf-text-muted); margin-top: 1px; }
-
-/* ---------- Main ---------- */
-.main {
-    padding: 24px 28px 40px;
-    display: flex; flex-direction: column; gap: 20px;
-}
-
-.host-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; }
-.host-header__title-row { display: flex; align-items: center; gap: 10px; }
-.host-header__title { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: var(--nf-text-heading); }
 .status-pill { padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-.host-header__meta {
-    margin-top: 5px; font-size: 12px; color: var(--nf-text-muted);
-    display: flex; gap: 14px; flex-wrap: wrap;
-}
-.host-header__meta i { margin-right: 6px; }
-.host-header__actions { display: flex; gap: 8px; }
-
-.alert-banner {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 16px;
-    background: oklch(from var(--nf-warning) 96% 0.05 h);
-    border: 1px solid oklch(from var(--nf-warning) 88% 0.07 h);
-    border-left: 3px solid var(--nf-warning);
-    border-radius: 6px;
-}
-[data-theme="dark"] .alert-banner {
-    background: oklch(from var(--nf-warning) 24% 0.07 h);
-    border-color: oklch(from var(--nf-warning) 38% 0.09 h);
-}
-.alert-banner__icon { color: var(--nf-warning); }
-.alert-banner__body { flex: 1; }
-.alert-banner__title { font-size: 13px; font-weight: 600; color: var(--nf-text-heading); }
-.alert-banner__text { font-size: 12px; color: var(--nf-text-muted); margin-top: 2px; }
-.alert-banner__link { font-size: 12px; font-weight: 600; white-space: nowrap; }
-
-.gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(232px, 1fr)); gap: 16px; }
-.gauge-card {
-    background: var(--nf-base-100); border: 1px solid var(--nf-divider); border-radius: 8px;
-    box-shadow: var(--nf-shadow-card);
-    padding: 16px;
-    display: flex; align-items: center; gap: 14px;
-}
-.gauge-ring { position: relative; width: 62px; height: 62px; flex: none; border-radius: 999px; }
-.gauge-ring__value {
-    position: absolute; inset: 7px; background: var(--nf-base-100); border-radius: 999px;
-    display: grid; place-items: center;
-    font-size: 13px; font-weight: 700; color: var(--nf-text-heading);
-    font-variant-numeric: tabular-nums;
-}
-.gauge-card__text { min-width: 0; }
-.gauge-card__label { font-size: 12px; font-weight: 600; color: var(--nf-text-muted); }
-.gauge-card__value {
-    font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: var(--nf-text-heading);
-    margin-top: 2px; font-variant-numeric: tabular-nums;
-}
-.gauge-card__hint { font-size: 11px; color: var(--nf-text-muted); margin-top: 2px; }
 
 .card {
     background: var(--nf-base-100); border: 1px solid var(--nf-divider); border-radius: 8px;
     box-shadow: var(--nf-shadow-card);
-}
-
-/* ---------- Trend chart (per-server CPU/RAM/disk history) ---------- */
-.trend-card { padding: 18px; }
-.trend-card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-.trend-card__title { font-size: 14px; font-weight: 700; color: var(--nf-text-heading); }
-.trend-card__controls { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
-.trend-card__controls-label { font-size: 12px; font-weight: 600; color: var(--nf-text-muted); }
-.trend-interval-select {
-    height: 28px; padding: 0 8px;
-    font-size: 12px; font-weight: 500; color: var(--nf-text);
-    background: var(--nf-input-bg);
-    border: 1px solid var(--nf-border-color);
-    border-radius: var(--nf-border-radius-sm);
-    cursor: pointer;
-    transition: var(--nf-transition);
-}
-.trend-interval-select:hover { border-color: var(--nf-border-color-hover); }
-.trend-interval-select:focus-visible { border-color: var(--nf-border-color-focus); }
-.trend-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
-.trend-legend__item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--nf-text-muted); }
-.trend-legend__key { width: 12px; height: 2px; border-radius: 999px; flex: none; }
-
-/* Network sits beside the CPU/RAM/disk chart, not on it — bytes and % never share a y-scale (see dataviz: one axis). Splitting the row in
-   two also keeps each chart from ever getting as wide (and so as tall, via aspect-ratio below) as the full card. */
-.trend-charts-row { display: flex; gap: 24px; }
-.trend-chart-wrap { position: relative; flex: 1 1 0; min-width: 0; }
-.trend-chart-wrap + .trend-chart-wrap { padding-left: 24px; border-left: 1px solid var(--nf-divider); }
-/* aspect-ratio keeps the 640x190 viewBox unscaled. No max-height: capping height while width:100% grows breaks that ratio and letterboxes the SVG. */
-.trend-chart { width: 100%; aspect-ratio: 640 / 190; }
-.trend-chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.trend-chart__grid { stroke: var(--nf-hairline); stroke-width: 1; }
-.trend-chart__baseline { stroke: var(--nf-border-color); stroke-width: 1; }
-.trend-chart__tick { font-size: 10px; fill: var(--nf-text-muted); font-variant-numeric: tabular-nums; }
-.trend-chart__line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.trend-chart__dot { stroke: var(--nf-base-100); stroke-width: 2; }
-.trend-chart__crosshair { stroke: var(--nf-border-color-hover); stroke-width: 1; }
-.trend-chart__hit { fill: transparent; cursor: crosshair; }
-
-.trend-tooltip {
-    position: absolute; top: 0; z-index: 10;
-    min-width: 140px; padding: 8px 10px;
-    background: var(--nf-base-100); border: 1px solid var(--nf-divider); border-radius: 6px;
-    box-shadow: var(--nf-menu-shadow);
-    font-size: 12px; pointer-events: none;
-}
-.trend-tooltip__title { font-size: 11px; color: var(--nf-text-muted); margin-bottom: 4px; }
-.trend-tooltip__row { display: flex; align-items: center; gap: 6px; justify-content: space-between; margin-top: 2px; }
-.trend-tooltip__row-label { display: flex; align-items: center; gap: 6px; color: var(--nf-text-muted); }
-.trend-tooltip__key { width: 10px; height: 2px; border-radius: 999px; flex: none; }
-.trend-tooltip__value { font-weight: 700; color: var(--nf-text-heading); font-variant-numeric: tabular-nums; }
-
-.disk-card { padding: 18px; }
-.disk-card__title { font-size: 14px; font-weight: 700; color: var(--nf-text-heading); margin-bottom: 14px; }
-.volume__head { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; margin-bottom: 5px; }
-.volume__mount { font-weight: 600; color: var(--nf-text-heading); font-family: var(--nf-font-mono); }
-.volume__free { color: var(--nf-text-muted); font-variant-numeric: tabular-nums; }
-.volume__track { height: 6px; border-radius: 999px; background: var(--nf-track-bg); overflow: hidden; }
-.volume__fill { height: 100%; border-radius: 999px; }
-.volume__note { font-size: 11px; color: var(--nf-text-muted); margin-top: 4px; }
-
-.disk-stats {
-    margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--nf-hairline);
-    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-}
-.disk-stat__label { font-size: 11px; color: var(--nf-text-muted); }
-.disk-stat__value {
-    font-size: 15px; font-weight: 700; color: var(--nf-text-heading);
-    font-variant-numeric: tabular-nums;
 }
 
 .state-pill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
@@ -514,16 +346,8 @@ button, input { font: inherit; }
     .app-header { min-width: 0; padding: 0 16px; gap: 12px; }
     .live-status__detail { display: none; }
 
-    .layout { grid-template-columns: 1fr; min-width: 0; }
-    .sidebar { border-right: none; border-bottom: 1px solid var(--nf-divider); min-height: auto; }
-    .server-list { max-height: 320px; overflow-y: auto; }
-
-    .main { padding: 16px 16px 32px; }
     .grid-view { padding: 16px 16px 32px; }
     .panels-row { grid-template-columns: 1fr; }
-
-    .trend-charts-row { flex-direction: column; gap: 20px; }
-    .trend-chart-wrap + .trend-chart-wrap { padding-left: 0; border-left: none; padding-top: 18px; border-top: 1px solid var(--nf-divider); }
 }
 
 @media (max-width: 480px) {
@@ -534,10 +358,6 @@ button, input { font: inherit; }
     .nw-word { font-size: 13px; }
 
     .grid-view__head { align-items: flex-start; }
-    .host-header__actions { width: 100%; }
-    .host-header__actions .btn { flex: 1; justify-content: center; }
 
     .fleet-tally, .fleet-tally--grid { grid-template-columns: 1fr; }
-
-    .disk-stats { grid-template-columns: 1fr; }
 }

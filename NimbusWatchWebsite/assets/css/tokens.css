@@ -95,12 +95,12 @@
     --nf-badge-neutral-bg: var(--nf-gray-100); /* neutral pill background (inactive user, etc.) */
     --nf-badge-neutral-fg: var(--nf-gray-600); /* neutral pill text */
 
-    /* Trend chart series (dashboard.js). CPU reuses the brand blue; RAM/disk are validated together with it via dataviz/scripts/validate_palette.js. */
+    /* Graph series (server-detail.js). CPU reuses the brand blue; RAM/disk are validated together with it via dataviz/scripts/validate_palette.js. */
     --nf-chart-cpu:  var(--nf-primary);
     --nf-chart-ram:  #eb6834;
     --nf-chart-disk: #1baf7a;
 
-    /* Network trend series — its own chart/axis, so this pair only needs to be distinguishable from each other. */
+    /* Network graph series — its own chart/axis, so this pair only needs to be distinguishable from each other. */
     --nf-chart-network-sent:     #8b5cf6;
     --nf-chart-network-received: #d6336c;
 }

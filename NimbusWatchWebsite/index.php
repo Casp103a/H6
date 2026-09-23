@@ -5,7 +5,10 @@ declare(strict_types=1);
 $brandName = 'Nimbus Watch';
 $pageTitle = 'Serverovervågning';
 // Servers are loaded client-side from GET /api/CompanyHardwareData/GetAll/{companyId}
-// by assets/js/dashboard.js. No fake/local data.
+// by assets/js/fleet.js (shared roster/history + header) and rendered
+// here by assets/js/dashboard.js. Clicking a server navigates to
+// server-detail.php?id={clientId}, which renders its single-server view.
+// No fake/local data.
 ?>
 <!DOCTYPE html>
 <html lang="da">
@@ -29,7 +32,7 @@ $pageTitle = 'Serverovervågning';
     <div class="scroll-shell">
         <?php include __DIR__ . '/partials/header.php'; ?>
 
-        <section id="grid-view" class="grid-view">
+        <section class="grid-view">
             <div class="grid-view__head">
                 <div>
                     <h1 class="grid-view__title">Servere</h1>
@@ -41,100 +44,11 @@ $pageTitle = 'Serverovervågning';
             <p id="fleet-status" class="empty-note">Indlæser servere…</p>
             <div id="fleet-grid" class="fleet-groups"></div>
         </section>
-
-        <div id="detail-view" class="layout" hidden>
-
-            <aside class="sidebar">
-                <div class="sidebar__heading">
-                    <span class="sidebar__heading-label">Servere</span>
-                    <span id="fleet-count" class="sidebar__heading-count"></span>
-                </div>
-                <div id="fleet-tally" class="fleet-tally"></div>
-                <div id="server-list" class="server-list"></div>
-            </aside>
-
-            <main class="main">
-
-                <div class="host-header">
-                    <div>
-                        <button type="button" id="back-to-grid" class="back-link"><i class="fa-solid fa-arrow-left"></i>Alle servere</button>
-                        <div class="host-header__title-row">
-                            <h1 id="host-name" class="host-header__title"></h1>
-                            <span id="host-status-pill" class="status-pill"></span>
-                        </div>
-                        <div id="host-meta" class="host-header__meta"></div>
-                    </div>
-                </div>
-
-                <div id="alert-banner" class="alert-banner" hidden>
-                    <i class="fa-solid fa-triangle-exclamation alert-banner__icon"></i>
-                    <div class="alert-banner__body">
-                        <div id="alert-title" class="alert-banner__title"></div>
-                        <div id="alert-body" class="alert-banner__text"></div>
-                    </div>
-                </div>
-
-                <div id="gauge-list" class="gauges"></div>
-
-                <div class="card trend-card">
-                    <div class="trend-card__head">
-                        <div class="trend-card__title">Udvikling · seneste målinger</div>
-                        <div class="trend-card__controls">
-                            <label for="graph-interval" class="trend-card__controls-label">Vælg tidsinterval</label>
-                            <select name="graph-interval" id="graph-interval" class="trend-interval-select" required></select>
-                            <button type="button" id="trend-table-toggle" class="back-link" style="margin-bottom:0">Vis som tabel</button>
-                        </div>
-                    </div>
-                    <div class="trend-charts-row">
-                        <div id="trend-chart-wrap" class="trend-chart-wrap">
-                            <div id="trend-legend" class="trend-legend"></div>
-                            <div id="trend-chart" class="trend-chart"></div>
-                            <div id="trend-tooltip" class="trend-tooltip" hidden></div>
-                        </div>
-                        <div id="trend-chart-wrap-network" class="trend-chart-wrap">
-                            <div id="trend-legend-network" class="trend-legend"></div>
-                            <div id="trend-chart-network" class="trend-chart"></div>
-                            <div id="trend-tooltip-network" class="trend-tooltip" hidden></div>
-                        </div>
-                    </div>
-                    <div id="trend-table-wrap" class="scroll-shell" hidden>
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th class="is-left">Tidspunkt</th>
-                                    <th class="is-right">CPU</th>
-                                    <th class="is-right">Hukommelse</th>
-                                    <th class="is-right">Disk</th>
-                                    <th class="is-right">Netværk Sent</th>
-                                    <th class="is-right">Netværk Modtaget</th>
-                                </tr>
-                            </thead>
-                            <tbody id="trend-table-body"></tbody>
-                        </table>
-                    </div>
-                    <p id="trend-empty" class="empty-note" hidden>Ikke nok målinger endnu til at vise udvikling.</p>
-                </div>
-
-                <div class="card disk-card">
-                    <div class="disk-card__title">Diskplads</div>
-                    <div class="volume">
-                        <div class="volume__head">
-                            <span class="volume__mount">Anvendt diskplads</span>
-                            <span id="disk-free-text" class="volume__free"></span>
-                        </div>
-                        <div class="volume__track">
-                            <div id="disk-fill" class="volume__fill"></div>
-                        </div>
-                        <div id="disk-note" class="volume__note"></div>
-                    </div>
-                </div>
-
-            </main>
-        </div>
     </div>
 
     <script src="/assets/js/api.js"></script>
     <script src="/assets/js/common.js"></script>
+    <script src="/assets/js/fleet.js"></script>
     <script src="/assets/js/dashboard.js"></script>
 </body>
 

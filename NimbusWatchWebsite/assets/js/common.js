@@ -98,6 +98,13 @@ window.NW = (function () {
     isAdmin(user).then(function (admin) { link.hidden = !admin; });
   }
 
+  // "Service-konfiguration" (server-detail.php's host header) is Admin-only, same as initCreateServerVisibility.
+  function initServiceConfigVisibility(user) {
+    var link = document.getElementById("service-config-link");
+    if (!link) return;
+    isAdmin(user).then(function (admin) { link.hidden = !admin; });
+  }
+
   // Populates the header's name label and avatar initials from the logged-in user's email.
   function initUserIdentity() {
     var nameLabel = document.getElementById("user-name-label");
@@ -109,6 +116,7 @@ window.NW = (function () {
       if (avatarBtn) avatarBtn.textContent = email.slice(0, 2).toUpperCase();
       initUsersNavVisibility(user);
       initCreateServerVisibility(user);
+      initServiceConfigVisibility(user);
     }).catch(function () { /* leave header blank if this fails */ });
   }
 
