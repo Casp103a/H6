@@ -39,7 +39,7 @@ $pageTitle = 'Serverovervågning';
                 <div id="fleet-tally-grid" class="fleet-tally fleet-tally--grid"></div>
             </div>
             <p id="fleet-status" class="empty-note">Indlæser servere…</p>
-            <div id="fleet-grid" class="fleet-grid"></div>
+            <div id="fleet-grid" class="fleet-groups"></div>
         </section>
 
         <div id="detail-view" class="layout" hidden>
@@ -78,15 +78,24 @@ $pageTitle = 'Serverovervågning';
 
                 <div class="card trend-card">
                     <div class="trend-card__head">
-                        <div>
-                            <div class="trend-card__title">Udvikling · seneste målinger</div>
-                            <div id="trend-legend" class="trend-legend"></div>
+                        <div class="trend-card__title">Udvikling · seneste målinger</div>
+                        <div class="trend-card__controls">
+                            <label for="graph-interval" class="trend-card__controls-label">Vælg tidsinterval</label>
+                            <select name="graph-interval" id="graph-interval" class="trend-interval-select" required></select>
+                            <button type="button" id="trend-table-toggle" class="back-link" style="margin-bottom:0">Vis som tabel</button>
                         </div>
-                        <button type="button" id="trend-table-toggle" class="back-link" style="margin-bottom:0">Vis som tabel</button>
                     </div>
-                    <div id="trend-chart-wrap" class="trend-chart-wrap">
-                        <div id="trend-chart" class="trend-chart"></div>
-                        <div id="trend-tooltip" class="trend-tooltip" hidden></div>
+                    <div class="trend-charts-row">
+                        <div id="trend-chart-wrap" class="trend-chart-wrap">
+                            <div id="trend-legend" class="trend-legend"></div>
+                            <div id="trend-chart" class="trend-chart"></div>
+                            <div id="trend-tooltip" class="trend-tooltip" hidden></div>
+                        </div>
+                        <div id="trend-chart-wrap-network" class="trend-chart-wrap">
+                            <div id="trend-legend-network" class="trend-legend"></div>
+                            <div id="trend-chart-network" class="trend-chart"></div>
+                            <div id="trend-tooltip-network" class="trend-tooltip" hidden></div>
+                        </div>
                     </div>
                     <div id="trend-table-wrap" class="scroll-shell" hidden>
                         <table class="data-table">
@@ -96,6 +105,8 @@ $pageTitle = 'Serverovervågning';
                                     <th class="is-right">CPU</th>
                                     <th class="is-right">Hukommelse</th>
                                     <th class="is-right">Disk</th>
+                                    <th class="is-right">Netværk Sent</th>
+                                    <th class="is-right">Netværk Modtaget</th>
                                 </tr>
                             </thead>
                             <tbody id="trend-table-body"></tbody>

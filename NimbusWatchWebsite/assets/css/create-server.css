@@ -11,6 +11,14 @@
 .create-server__form { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 .create-server__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 
+.watch-list__input-row { display: flex; gap: 8px; }
+.watch-list__input-row input { flex: 1; }
+.watch-list__items { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.watch-list__items:empty { margin: 0; }
+.watch-list__item { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 12px; border-radius: 999px; background: var(--nf-badge-neutral-bg); color: var(--nf-badge-neutral-fg); font-size: 13px; }
+.watch-list__item-remove { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: none; border-radius: 50%; background: transparent; cursor: pointer; color: inherit; opacity: .7; }
+.watch-list__item-remove:hover { opacity: 1; background: var(--nf-hover-bg); }
+
 @media (max-width: 900px) {
     .create-server { padding: 16px 16px 32px; max-width: none; }
 }

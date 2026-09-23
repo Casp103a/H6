@@ -1,28 +1,15 @@
 /* ==========================================================================
-   Server monitoring dashboard — loads real data in two steps (companyId
-   comes from GET /api/company first, same pattern as users.js/create-
-   server.js):
-     1. GET /api/ServerService/GetAll/{companyId} — the fleet roster:
-        ServiceInfoDto { serverName, ipAddress, clientId } per service
-        client. clientId is the GUID identity (ServiceClientModel.ClientId),
-        used as this app's server id from here on (State.selected, data-id
-        attributes, State.history keys — all GUID strings, not the old int
-        ServiceId).
-     2. For each of those, GET /api/CompanyHardwareData/GetHardwareData/
-        {companyId}?clientId={clientId} — that one server's reading history
-        (server-side, it resolves clientId to the int ServiceId internally
-        and filters on that). It's an insert-only log (one row per reading,
-        no update/upsert), so the latest reading is the fleet/gauge
-        snapshot and the recent ones before it feed the trend chart — see
-        buildServer/renderTrend. A server with no readings yet just gets an
-        empty history (trend chart hidden, gauges show 0).
+   Server monitoring dashboard. Loads data in two steps: GET /api/
+   ServerService/GetAll/{companyId} for the fleet roster (clientId is the
+   GUID used as this app's server id everywhere), then per server GET /api/
+   CompanyHardwareData/GetHardwareData/{companyId}?clientId={clientId} for
+   its reading history. The latest reading is the fleet/gauge snapshot; the
+   rest feed the trend chart (see buildServer/renderTrend).
    ========================================================================== */
 (function () {
   "use strict";
 
-  // Shared palette + helpers live in common.js so every page (dashboard,
-  // users, …) draws status colors from one place — see common.js for what
-  // each of these actually is.
+  // Shared palette + helpers, defined in common.js so every page draws status colors from one place.
   var OK = NW.colors.OK;
   var WARN = NW.colors.WARN;
   var CRIT = NW.colors.CRIT;
@@ -36,29 +23,88 @@
   var esc = NW.esc;
   var nf = NW.nf;
 
-  // Operational thresholds: drive status(), the alert banner, and gauge-ring
-  // coloring for ram/disk. CPU's ring uses its own, more sensitive pair
-  // below (deliberately, not a duplicate) so it flags rising load visually
-  // before the overall host status escalates.
+  // Drives status(), the alert banner, and the ram/disk gauge rings. CPU's ring uses its own, more sensitive pair below on purpose.
+  var MB = 1024 * 1024;
   var THRESHOLDS = {
     cpuWarn: 85, cpuCrit: 95,
     ramWarn: 75, ramCrit: 90,
-    diskWarn: 85, diskCrit: 95
+    diskWarn: 85, diskCrit: 95,
+    networkSentWarn: 250 * MB, networkSentCrit: 1024 * MB,
+    networkReceivedWarn: 250 * MB, networkReceivedCrit: 1024 * MB
   };
   var GAUGE_CPU_WARN = 60, GAUGE_CPU_CRIT = 85;
 
   var POLL_MS = 60000; // real network calls, not a client-side generator — no need for a 2.2s cadence
 
-  var State = { servers: [], history: {}, selected: null, live: true, view: "grid", companyId: null, trendView: "chart" };
+  var State = { servers: [], history: {}, selected: null, live: true, view: "grid", companyId: null, trendView: "chart", trendRange: "today", query: "", serverTypes: [], typeFilter: "" };
 
-  // Trend chart series (renderTrendChart/renderTrendLegend) — CPU/RAM/disk
-  // share one 0-100% axis, so one chart with three lines instead of three
-  // separate ones. Colors come from tokens.css (validated together via
-  // dataviz's validate_palette.js — see the tokens.css comment).
-  var TREND_SERIES = [
+  var UNKNOWN_TYPE_LABEL = "Ukendt type";
+
+  // Human-readable name for a serverTypeId, from the /ServerTypes list loaded once at startup.
+  function typeName(serverTypeId) {
+    var match = State.serverTypes.filter(function (t) { return t.id === serverTypeId; })[0];
+    return match ? match.serverTypeName : UNKNOWN_TYPE_LABEL;
+  }
+
+  // Trend interval options (#graph-interval). "today" is calendar-day; the rest are rolling windows back from now.
+  var TREND_RANGES = [
+    { key: "today", label: "I dag", from: function () { var d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); } },
+    { key: "week", label: "Seneste uge", from: function () { return Date.now() - 7 * 24 * 60 * 60 * 1000; } },
+    { key: "month", label: "Seneste måned", from: function () { return Date.now() - 30 * 24 * 60 * 60 * 1000; } },
+    { key: "year", label: "Seneste år", from: function () { return Date.now() - 365 * 24 * 60 * 60 * 1000; } }
+  ];
+
+  // Filters a server's full reading history down to the selected trend range.
+  function filterHistoryByRange(history) {
+    var range = TREND_RANGES.filter(function (r) { return r.key === State.trendRange; })[0] || TREND_RANGES[0];
+    var from = range.from();
+    return history.filter(function (h) { return h.createdAt && h.createdAt.getTime() >= from; });
+  }
+
+  // Above this many readings, buildTrendPoints averages them into evenly-timed buckets instead of plotting every raw reading.
+  var MAX_TREND_POINTS = 150;
+
+  function buildTrendPoints(history) {
+    var points = history.map(function (h) {
+      return { cpu: h.cpuUsage, ram: ramPct(h), disk: diskUsedPct(h), NetworkBytesSent: h.NetworkBytesSent, NetworkBytesReceived: h.NetworkBytesReceived, time: h.createdAt };
+    });
+    if (points.length <= MAX_TREND_POINTS) return points;
+
+    var startMs = points[0].time.getTime();
+    var endMs = points[points.length - 1].time.getTime();
+    var span = Math.max(1, endMs - startMs);
+    var buckets = [];
+    points.forEach(function (p) {
+      var bucketIndex = clamp(Math.floor(((p.time.getTime() - startMs) / span) * MAX_TREND_POINTS), 0, MAX_TREND_POINTS - 1);
+      var bucket = buckets[bucketIndex] || (buckets[bucketIndex] = { cpu: 0, ram: 0, disk: 0, NetworkBytesSent: 0, NetworkBytesReceived: 0, timeSum: 0, n: 0 });
+      bucket.cpu += p.cpu; bucket.ram += p.ram; bucket.disk += p.disk; bucket.NetworkBytesSent += p.NetworkBytesSent; bucket.NetworkBytesReceived += p.NetworkBytesReceived; bucket.timeSum += p.time.getTime(); bucket.n++;
+    });
+    return buckets.filter(Boolean).map(function (b) {
+      return { cpu: b.cpu / b.n, ram: b.ram / b.n, disk: b.disk / b.n, NetworkBytesSent: b.NetworkBytesSent / b.n, NetworkBytesReceived: b.NetworkBytesReceived / b.n, time: new Date(b.timeSum / b.n) };
+    });
+  }
+
+  // Servers matching the header search box, by serverName or ipAddress
+  // (case-insensitive substring), further narrowed by the server-type
+  // filter — empty values for either match everything.
+  function visibleServers() {
+    var q = State.query.trim().toLowerCase();
+    return State.servers.filter(function (s) {
+      if (State.typeFilter !== "" && String(s.serverTypeId) !== State.typeFilter) return false;
+      if (!q) return true;
+      return (s.serverName || "").toLowerCase().indexOf(q) !== -1 || (s.ipAddress || "").toLowerCase().indexOf(q) !== -1;
+    });
+  }
+
+  // CPU/RAM/disk share one 0-100% axis. Network is bytes, not a percentage, so it gets its own chart with its own axis (see drawChart).
+  var PERCENT_SERIES = [
     { key: "cpu", label: "CPU", color: "var(--nf-chart-cpu)" },
     { key: "ram", label: "Hukommelse", color: "var(--nf-chart-ram)" },
     { key: "disk", label: "Disk", color: "var(--nf-chart-disk)" }
+  ];
+  var NETWORK_SERIES = [
+    { key: "NetworkBytesSent", label: "Netværk (Sendt)", color: "var(--nf-chart-network-sent)" },
+    { key: "NetworkBytesReceived", label: "Netværk (Modtaget)", color: "var(--nf-chart-network-received)" }
   ];
 
   // Forces n to stay within [lo, hi] — keeps a percentage from ever showing as e.g. 104% or -3%.
@@ -77,6 +123,18 @@
     return s.diskTotalSpace ? clamp(((s.diskTotalSpace - s.diskRemainingSpace) / s.diskTotalSpace) * 100, 0, 100) : 0;
   }
 
+  // Network bytes as % of its critical threshold — ring() needs 0-100, and a raw byte count would wrap its conic-gradient many times over.
+  function networkPct(bytes, crit) { return crit ? clamp((bytes / crit) * 100, 0, 100) : 0; }
+
+  // A byte count in the largest unit that keeps it >= 1 (B/KB/MB/GB/TB) — a raw byte count is unreadable on its own.
+  function formatBytes(n) {
+    var v = Math.abs(n) || 0;
+    var units = ["B", "KB", "MB", "GB", "TB"];
+    var i = 0;
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    return nf(v, i === 0 ? 0 : 1) + " " + units[i];
+  }
+
   // A reading's CreatedAt as "DD/MM HH:MM:SS" — the trend window can span
   // more than one day, so it's not time-only like renderClock's header clock.
   function formatTimestamp(date) {
@@ -89,10 +147,10 @@
   // Classifies a server as OK/Advarsel/Kritisk from its CPU/RAM/disk against THRESHOLDS, worst metric wins.
   function status(s) {
     var ram = ramPct(s), disk = diskUsedPct(s);
-    if (s.cpuUsage >= THRESHOLDS.cpuCrit || ram >= THRESHOLDS.ramCrit || disk >= THRESHOLDS.diskCrit) {
+    if (s.cpuUsage >= THRESHOLDS.cpuCrit || ram >= THRESHOLDS.ramCrit || disk >= THRESHOLDS.diskCrit || s.NetworkBytesSent >= THRESHOLDS.networkSentCrit || s.NetworkBytesReceived >= THRESHOLDS.networkReceivedCrit) {
       return { label: "Kritisk", color: CRIT, bg: TINT_CRIT, fg: INK_CRIT };
     }
-    if (s.cpuUsage >= THRESHOLDS.cpuWarn || ram >= THRESHOLDS.ramWarn || disk >= THRESHOLDS.diskWarn) {
+    if (s.cpuUsage >= THRESHOLDS.cpuWarn || ram >= THRESHOLDS.ramWarn || disk >= THRESHOLDS.diskWarn || s.NetworkBytesSent >= THRESHOLDS.networkSentWarn || s.NetworkBytesReceived >= THRESHOLDS.networkReceivedWarn) {
       return { label: "Advarsel", color: WARN, bg: TINT_WARN, fg: INK_WARN };
     }
     return { label: "OK", color: OK, bg: TINT_OK, fg: INK_OK };
@@ -108,6 +166,7 @@
 
   function render() {
     renderTally();
+    renderFleetStatus();
     renderFleetGrid();
     renderSidebar();
     var sel = getSelected();
@@ -157,26 +216,51 @@
     document.getElementById("fleet-count-grid").textContent = countText;
   }
 
+  function fleetCardHtml(s) {
+    var st = status(s);
+    return '<button type="button" class="card fleet-card" data-id="' + s.id + '" style="border-left:3px solid ' + st.color + '">' +
+      '<div class="fleet-card__head">' +
+      '<span class="fleet-card__name">' + esc(s.serverName) + '</span>' +
+      '<span class="status-pill" style="color:' + st.fg + ';background:' + st.bg + '">' + esc(st.label) + '</span>' +
+      '</div>' +
+      '<div class="fleet-card__meta">' + esc(s.ipAddress) + '</div>' +
+      '<div class="fleet-card__metrics">' +
+      '<div><div class="fleet-card__metric-label">CPU</div><div class="fleet-card__metric-value" style="color:' + st.color + '">' + nf(s.cpuUsage, 0) + ' %</div></div>' +
+      '<div><div class="fleet-card__metric-label">Hukommelse</div><div class="fleet-card__metric-value">' + nf(ramPct(s), 0) + ' %</div></div>' +
+      '<div><div class="fleet-card__metric-label">Disk</div><div class="fleet-card__metric-value">' + nf(diskUsedPct(s), 0) + ' %</div></div>' +
+      '<div><div class="fleet-card__metric-label">Netværk (Sendt)</div><div class="fleet-card__metric-value">' + formatBytes(s.NetworkBytesSent) + '</div></div>' +
+      '<div><div class="fleet-card__metric-label">Netværk (Modtaget)</div><div class="fleet-card__metric-value">' + formatBytes(s.NetworkBytesReceived) + '</div></div>' +
+      '</div>' +
+      '</button>';
+  }
+
+  // Groups the visible servers by server type, sorted by type name (unknown/unmatched types last), for the grid's section headers.
+  function groupByType(servers) {
+    var groups = {};
+    servers.forEach(function (s) {
+      var key = String(s.serverTypeId);
+      if (!groups[key]) groups[key] = { label: typeName(s.serverTypeId), servers: [] };
+      groups[key].servers.push(s);
+    });
+    return Object.keys(groups).map(function (key) { return groups[key]; }).sort(function (a, b) {
+      if (a.label === UNKNOWN_TYPE_LABEL) return 1;
+      if (b.label === UNKNOWN_TYPE_LABEL) return -1;
+      return a.label.localeCompare(b.label, "da");
+    });
+  }
+
   function renderFleetGrid() {
-    document.getElementById("fleet-grid").innerHTML = State.servers.map(function (s) {
-      var st = status(s);
-      return '<button type="button" class="card fleet-card" data-id="' + s.id + '" style="border-left:3px solid ' + st.color + '">' +
-        '<div class="fleet-card__head">' +
-        '<span class="fleet-card__name">' + esc(s.serverName) + '</span>' +
-        '<span class="status-pill" style="color:' + st.fg + ';background:' + st.bg + '">' + esc(st.label) + '</span>' +
-        '</div>' +
-        '<div class="fleet-card__meta">' + esc(s.ipAddress) + '</div>' +
-        '<div class="fleet-card__metrics">' +
-        '<div><div class="fleet-card__metric-label">CPU</div><div class="fleet-card__metric-value" style="color:' + st.color + '">' + nf(s.cpuUsage, 0) + ' %</div></div>' +
-        '<div><div class="fleet-card__metric-label">Hukommelse</div><div class="fleet-card__metric-value">' + nf(ramPct(s), 0) + ' %</div></div>' +
-        '<div><div class="fleet-card__metric-label">Disk</div><div class="fleet-card__metric-value">' + nf(diskUsedPct(s), 0) + ' %</div></div>' +
-        '</div>' +
-        '</button>';
+    var groups = groupByType(visibleServers());
+    document.getElementById("fleet-grid").innerHTML = groups.map(function (g) {
+      return '<div class="fleet-group">' +
+        '<div class="fleet-group__title">' + esc(g.label) + ' <span class="fleet-group__count">(' + g.servers.length + ')</span></div>' +
+        '<div class="fleet-grid">' + g.servers.map(fleetCardHtml).join("") + '</div>' +
+        '</div>';
     }).join("");
   }
 
   function renderSidebar() {
-    document.getElementById("server-list").innerHTML = State.servers.map(function (s) {
+    document.getElementById("server-list").innerHTML = visibleServers().map(function (s) {
       var st = status(s);
       var active = s.id === State.selected;
       return '<button type="button" class="server-row' + (active ? " server-row--selected" : "") + '" data-id="' + s.id + '">' +
@@ -188,6 +272,8 @@
         '<span class="server-row__metrics">' +
         '<span class="server-row__cpu" style="color:' + st.color + '">' + nf(s.cpuUsage, 0) + ' % CPU</span>' +
         '<span class="server-row__secondary">' + nf(diskUsedPct(s), 0) + ' % Disk</span>' +
+        '<span class="server-row__secondary">' + formatBytes(s.NetworkBytesSent) + ' Sendt</span>' +
+        '<span class="server-row__secondary">' + formatBytes(s.NetworkBytesReceived) + ' Modtaget</span>' +
         '</span>' +
         '</button>';
     }).join("");
@@ -215,11 +301,11 @@
       : "Værdi over advarselsgrænsen på " + s.serverName;
     var body;
     if (disk >= THRESHOLDS.diskWarn) {
-      body = "Diskforbrug " + nf(disk, 0) + " % mod grænsen " + THRESHOLDS.diskWarn + " % · CPU " + nf(s.cpuUsage, 0) + " % · hukommelse " + nf(ram, 0) + " %.";
+      body = "Diskforbrug " + nf(disk, 0) + " % mod grænsen " + THRESHOLDS.diskWarn + " % · CPU " + nf(s.cpuUsage, 0) + " % · hukommelse " + nf(ram, 0) + " % · Netværk (Sendt) " + formatBytes(s.NetworkBytesSent) + " · Netværk (Modtaget) " + formatBytes(s.NetworkBytesReceived) + "." ;
     } else if (s.cpuUsage >= THRESHOLDS.cpuWarn) {
-      body = "CPU " + nf(s.cpuUsage, 0) + " % vedvarende · hukommelse " + nf(ram, 0) + " % · diskforbrug " + nf(disk, 0) + " %.";
+      body = "CPU " + nf(s.cpuUsage, 0) + " % vedvarende · hukommelse " + nf(ram, 0) + " % · diskforbrug " + nf(disk, 0) + " % · Netværk (Sendt) " + formatBytes(s.NetworkBytesSent) + " · Netværk (Modtaget) " + formatBytes(s.NetworkBytesReceived) + ".";
     } else {
-      body = "Hukommelse " + nf(ram, 0) + " % mod grænsen " + THRESHOLDS.ramWarn + " % · CPU " + nf(s.cpuUsage, 0) + " % · diskforbrug " + nf(disk, 0) + " %.";
+      body = "Hukommelse " + nf(ram, 0) + " % mod grænsen " + THRESHOLDS.ramWarn + " % · CPU " + nf(s.cpuUsage, 0) + " % · diskforbrug " + nf(disk, 0) + " % · Netværk (Sendt) " + formatBytes(s.NetworkBytesSent) + " · Netværk (Modtaget) " + formatBytes(s.NetworkBytesReceived) + ".";
     }
     document.getElementById("alert-title").textContent = title;
     document.getElementById("alert-body").textContent = body;
@@ -230,7 +316,9 @@
     var gauges = [
       { label: "CPU-belastning", value: nf(s.cpuUsage, 0) + "%", big: nf(s.cpuUsage, 1) + " %", hint: "", ring: ring(s.cpuUsage, s.cpuUsage > GAUGE_CPU_CRIT ? CRIT : s.cpuUsage > GAUGE_CPU_WARN ? WARN : BLUE) },
       { label: "Hukommelse", value: nf(ram, 0) + "%", big: nf(s.ramUsage, 1) + " GB", hint: "af " + nf(s.ramTotal, 0) + " GB i alt", ring: ring(ram, ram > THRESHOLDS.ramCrit ? CRIT : ram > THRESHOLDS.ramWarn ? WARN : BLUE) },
-      { label: "Diskplads", value: nf(disk, 0) + "%", big: nf(s.diskRemainingSpace, 0) + " GB fri", hint: "af " + nf(s.diskTotalSpace, 0) + " GB i alt", ring: ring(disk, disk >= THRESHOLDS.diskCrit ? CRIT : disk >= THRESHOLDS.diskWarn ? WARN : BLUE) }
+      { label: "Diskplads", value: nf(disk, 0) + "%", big: nf(s.diskRemainingSpace, 0) + " GB fri", hint: "af " + nf(s.diskTotalSpace, 0) + " GB i alt", ring: ring(disk, disk >= THRESHOLDS.diskCrit ? CRIT : disk >= THRESHOLDS.diskWarn ? WARN : BLUE) },
+      { label: "Netværk (Sendt)", value: formatBytes(s.NetworkBytesSent), big: formatBytes(s.NetworkBytesSent), hint: "", ring: ring(networkPct(s.NetworkBytesSent, THRESHOLDS.networkSentCrit), s.NetworkBytesSent >= THRESHOLDS.networkSentCrit ? CRIT : s.NetworkBytesSent >= THRESHOLDS.networkSentWarn ? WARN : BLUE) },
+      { label: "Netværk (Modtaget)", value: formatBytes(s.NetworkBytesReceived), big: formatBytes(s.NetworkBytesReceived), hint: "", ring: ring(networkPct(s.NetworkBytesReceived, THRESHOLDS.networkReceivedCrit), s.NetworkBytesReceived >= THRESHOLDS.networkReceivedCrit ? CRIT : s.NetworkBytesReceived >= THRESHOLDS.networkReceivedWarn ? WARN : BLUE) }
     ];
     document.getElementById("gauge-list").innerHTML = gauges.map(function (g) {
       return '<div class="gauge-card">' +
@@ -257,114 +345,115 @@
     document.getElementById("disk-note").textContent = nf(disk, 0) + " % brugt";
   }
 
-  function renderTrendLegend() {
-    document.getElementById("trend-legend").innerHTML = TREND_SERIES.map(function (series) {
-      return '<span class="trend-legend__item"><span class="trend-legend__key" style="background:' + series.color + '"></span>' + esc(series.label) + '</span>';
+  function legendHtml(series) {
+    return series.map(function (s) {
+      return '<span class="trend-legend__item"><span class="trend-legend__key" style="background:' + s.color + '"></span>' + esc(s.label) + '</span>';
     }).join("");
   }
 
-  // Shows the chart or the table (never both) per State.trendView, without
-  // touching their content — so toggling doesn't fight the 60s poll re-render.
+  function renderTrendLegend() {
+    document.getElementById("trend-legend").innerHTML = legendHtml(PERCENT_SERIES);
+    document.getElementById("trend-legend-network").innerHTML = legendHtml(NETWORK_SERIES);
+  }
+
+  // Shows the charts or the table (never both), without touching their content, so toggling doesn't fight the poll re-render.
   function applyTrendView() {
     var isTable = State.trendView === "table";
     document.getElementById("trend-chart-wrap").hidden = isTable;
+    document.getElementById("trend-chart-wrap-network").hidden = isTable;
     document.getElementById("trend-table-wrap").hidden = !isTable;
     document.getElementById("trend-table-toggle").textContent = isTable ? "Vis som graf" : "Vis som tabel";
   }
 
-  // Draws the per-server CPU/hukommelse/disk trend: one 0-100% axis, three
-  // lines (see TREND_SERIES) sharing it — never a dual-axis chart. A hover
-  // crosshair + tooltip reads all three at once; the table toggle is the
-  // no-hover/keyboard fallback so every value stays reachable.
-  function renderTrend(s) {
-    var history = State.history[s.id] || [];
-    var toggleBtn = document.getElementById("trend-table-toggle");
-    var emptyNote = document.getElementById("trend-empty");
-    var tooltip = document.getElementById("trend-tooltip");
-
-    renderTrendLegend();
-
-    if (history.length < 2) {
-      document.getElementById("trend-chart-wrap").hidden = true;
-      document.getElementById("trend-table-wrap").hidden = true;
-      toggleBtn.hidden = true;
-      tooltip.hidden = true;
-      emptyNote.hidden = false;
-      return;
-    }
-    emptyNote.hidden = true;
-    toggleBtn.hidden = false;
-    applyTrendView();
-
-    var points = history.map(function (h) {
-      return { cpu: h.cpuUsage, ram: ramPct(h), disk: diskUsedPct(h), time: h.createdAt };
+  // The highest value either network series reaches, with headroom so the peak isn't pinned to the top, floored to avoid a 0-height axis.
+  function networkScaleMax(points) {
+    var max = 0;
+    points.forEach(function (p) {
+      NETWORK_SERIES.forEach(function (series) { if (p[series.key] > max) max = p[series.key]; });
     });
+    return Math.max(1024, max * 1.15);
+  }
 
-    var chartWidth = 640, chartHeight = 200;
-    var paddingLeft = 32, paddingRight = 12, paddingTop = 10, paddingBottom = 10;
+  // Draws one trend chart for the given series/scale (see PERCENT_SERIES/NETWORK_SERIES) with a hover crosshair + tooltip.
+  function drawChart(chartElId, tooltipElId, wrapElId, points, series, scaleMax, formatTick, formatValue, ariaLabel) {
+    var chartWidth = 640, chartHeight = 190;
+    var paddingLeft = 44, paddingRight = 12, paddingTop = 10, paddingBottom = 10;
     var plotWidth = chartWidth - paddingLeft - paddingRight;
     var plotHeight = chartHeight - paddingTop - paddingBottom;
     var lastReadingIndex = points.length - 1;
+    var firstTime = points[0].time.getTime();
+    var lastTime = points[lastReadingIndex].time.getTime();
+    var timeSpan = Math.max(1, lastTime - firstTime);
 
-    function xForReading(readingIndex) {
-      return paddingLeft + (lastReadingIndex === 0 ? 0 : (readingIndex / lastReadingIndex) * plotWidth);
+    // Positions a point by its actual timestamp, not its array index, so irregular gaps between readings don't skew the line.
+    function xForPoint(point) {
+      return paddingLeft + (timeSpan === 0 ? 0 : ((point.time.getTime() - firstTime) / timeSpan) * plotWidth);
     }
-    function yForPercent(percent) {
-      return paddingTop + plotHeight - (clamp(percent, 0, 100) / 100) * plotHeight;
+    function yForValue(value) {
+      return paddingTop + plotHeight - (clamp(value, 0, scaleMax) / scaleMax) * plotHeight;
     }
     function pathFor(seriesKey) {
       return points.map(function (p, readingIndex) {
-        return (readingIndex === 0 ? "M" : "L") + xForReading(readingIndex).toFixed(1) + "," + yForPercent(p[seriesKey]).toFixed(1);
+        return (readingIndex === 0 ? "M" : "L") + xForPoint(p).toFixed(1) + "," + yForValue(p[seriesKey]).toFixed(1);
       }).join(" ");
     }
 
-    var gridSvg = [0, 50, 100].map(function (tickPercent) {
-      var tickY = yForPercent(tickPercent).toFixed(1);
+    var gridSvg = [0, scaleMax / 2, scaleMax].map(function (tickValue) {
+      var tickY = yForValue(tickValue).toFixed(1);
       return '<line class="trend-chart__grid" x1="' + paddingLeft + '" x2="' + (chartWidth - paddingRight) + '" y1="' + tickY + '" y2="' + tickY + '"></line>' +
-        '<text class="trend-chart__tick" x="' + (paddingLeft - 6) + '" y="' + (yForPercent(tickPercent) + 3).toFixed(1) + '" text-anchor="end">' + tickPercent + '%</text>';
+        '<text class="trend-chart__tick" x="' + (paddingLeft - 6) + '" y="' + (yForValue(tickValue) + 3).toFixed(1) + '" text-anchor="end">' + esc(formatTick(tickValue)) + '</text>';
     }).join("");
 
-    var linesSvg = TREND_SERIES.map(function (series) {
-      return '<path class="trend-chart__line" d="' + pathFor(series.key) + '" style="stroke:' + series.color + '"></path>';
+    var linesSvg = series.map(function (s) {
+      return '<path class="trend-chart__line" d="' + pathFor(s.key) + '" style="stroke:' + s.color + '"></path>';
     }).join("");
 
-    var endDotsSvg = TREND_SERIES.map(function (series) {
-      return '<circle class="trend-chart__dot" r="4" cx="' + xForReading(lastReadingIndex).toFixed(1) + '" cy="' + yForPercent(points[lastReadingIndex][series.key]).toFixed(1) + '" style="fill:' + series.color + '"></circle>';
+    var endDotsSvg = series.map(function (s) {
+      return '<circle class="trend-chart__dot" r="4" cx="' + xForPoint(points[lastReadingIndex]).toFixed(1) + '" cy="' + yForValue(points[lastReadingIndex][s.key]).toFixed(1) + '" style="fill:' + s.color + '"></circle>';
     }).join("");
 
-    var chartEl = document.getElementById("trend-chart");
+    var chartEl = document.getElementById(chartElId);
     chartEl.innerHTML =
-      '<svg viewBox="0 0 ' + chartWidth + ' ' + chartHeight + '" role="img" aria-label="Udvikling for CPU, hukommelse og disk over de seneste målinger">' +
+      '<svg viewBox="0 0 ' + chartWidth + ' ' + chartHeight + '" role="img" aria-label="' + esc(ariaLabel) + '">' +
       gridSvg +
       linesSvg + endDotsSvg +
       '<g class="trend-chart__crosshair-group" hidden><line class="trend-chart__crosshair" y1="' + paddingTop + '" y2="' + (paddingTop + plotHeight) + '"></line></g>' +
       '<rect class="trend-chart__hit" x="' + paddingLeft + '" y="' + paddingTop + '" width="' + plotWidth + '" height="' + plotHeight + '"></rect>' +
       '</svg>';
 
-    var svg = chartEl.querySelector("svg");
     var hitRect = chartEl.querySelector(".trend-chart__hit");
     var crosshairGroup = chartEl.querySelector(".trend-chart__crosshair-group");
     var crosshairLine = crosshairGroup.querySelector("line");
-    var wrapEl = document.getElementById("trend-chart-wrap");
+    var wrapEl = document.getElementById(wrapElId);
+    var tooltip = document.getElementById(tooltipElId);
 
+    // Finds the point whose timestamp is closest to the pointer's x position (binary search — points are time-sorted). Reads the hit
+    // rect's own rendered box rather than the <svg>'s, so it stays accurate even if the SVG ever letterboxes.
     function nearestReadingIndex(pointerClientX) {
-      var box = svg.getBoundingClientRect();
-      var svgX = (pointerClientX - box.left) / box.width * chartWidth;
-      return clamp(Math.round(((svgX - paddingLeft) / plotWidth) * lastReadingIndex), 0, lastReadingIndex);
+      var box = hitRect.getBoundingClientRect();
+      var fraction = box.width === 0 ? 0 : clamp((pointerClientX - box.left) / box.width, 0, 1);
+      var targetTime = firstTime + fraction * timeSpan;
+      var lo = 0, hi = lastReadingIndex;
+      while (lo < hi) {
+        var mid = (lo + hi) >> 1;
+        if (points[mid].time.getTime() < targetTime) lo = mid + 1; else hi = mid;
+      }
+      if (lo > 0 && Math.abs(points[lo - 1].time.getTime() - targetTime) < Math.abs(points[lo].time.getTime() - targetTime)) lo--;
+      return lo;
     }
 
     function showTooltip(readingIndex, pointerClientX) {
       var p = points[readingIndex];
       crosshairGroup.hidden = false;
-      crosshairLine.setAttribute("x1", xForReading(readingIndex).toFixed(1));
-      crosshairLine.setAttribute("x2", xForReading(readingIndex).toFixed(1));
+      crosshairLine.setAttribute("x1", xForPoint(p).toFixed(1));
+      crosshairLine.setAttribute("x2", xForPoint(p).toFixed(1));
 
       tooltip.innerHTML =
         '<div class="trend-tooltip__title">' + esc(formatTimestamp(p.time)) + '</div>' +
-        TREND_SERIES.map(function (series) {
+        series.map(function (s) {
           return '<div class="trend-tooltip__row">' +
-            '<span class="trend-tooltip__row-label"><span class="trend-tooltip__key" style="background:' + series.color + '"></span>' + esc(series.label) + '</span>' +
-            '<span class="trend-tooltip__value">' + nf(p[series.key], 0) + ' %</span>' +
+            '<span class="trend-tooltip__row-label"><span class="trend-tooltip__key" style="background:' + s.color + '"></span>' + esc(s.label) + '</span>' +
+            '<span class="trend-tooltip__value">' + esc(formatValue(p[s.key])) + '</span>' +
             '</div>';
         }).join("");
       tooltip.hidden = false;
@@ -382,6 +471,40 @@
 
     hitRect.addEventListener("mousemove", function (e) { showTooltip(nearestReadingIndex(e.clientX), e.clientX); });
     hitRect.addEventListener("mouseleave", hideTooltip);
+  }
+
+  function renderTrend(s) {
+    var history = filterHistoryByRange(State.history[s.id] || []);
+    var toggleBtn = document.getElementById("trend-table-toggle");
+    var emptyNote = document.getElementById("trend-empty");
+
+    renderTrendLegend();
+
+    if (history.length < 2) {
+      document.getElementById("trend-chart-wrap").hidden = true;
+      document.getElementById("trend-chart-wrap-network").hidden = true;
+      document.getElementById("trend-table-wrap").hidden = true;
+      toggleBtn.hidden = true;
+      document.getElementById("trend-tooltip").hidden = true;
+      document.getElementById("trend-tooltip-network").hidden = true;
+      emptyNote.hidden = false;
+      return;
+    }
+    emptyNote.hidden = true;
+    toggleBtn.hidden = false;
+    applyTrendView();
+
+    var points = buildTrendPoints(history);
+
+    drawChart("trend-chart", "trend-tooltip", "trend-chart-wrap", points, PERCENT_SERIES, 100,
+      function (v) { return v + "%"; },
+      function (v) { return nf(v, 0) + " %"; },
+      "Udvikling for CPU, hukommelse og disk over de seneste målinger");
+
+    drawChart("trend-chart-network", "trend-tooltip-network", "trend-chart-wrap-network", points, NETWORK_SERIES, networkScaleMax(points),
+      formatBytes,
+      formatBytes,
+      "Udvikling for netværkstrafik (sendt/modtaget) over de seneste målinger");
 
     document.getElementById("trend-table-body").innerHTML = points.map(function (p) {
       return '<tr>' +
@@ -389,6 +512,8 @@
         '<td class="is-right">' + nf(p.cpu, 0) + ' %</td>' +
         '<td class="is-right">' + nf(p.ram, 0) + ' %</td>' +
         '<td class="is-right">' + nf(p.disk, 0) + ' %</td>' +
+        '<td class="is-right">' + formatBytes(p.NetworkBytesSent) + '</td>' +
+        '<td class="is-right">' + formatBytes(p.NetworkBytesReceived) + '</td>' +
         '</tr>';
     }).join("");
   }
@@ -396,6 +521,16 @@
   function setFleetStatus(text) {
     var el = document.getElementById("fleet-status");
     if (text) { el.textContent = text; el.hidden = false; } else { el.hidden = true; }
+  }
+
+  // Fleet-grid empty state: no servers at all vs. none matching the search box.
+  function renderFleetStatus() {
+    if (!State.servers.length) { setFleetStatus("Ingen servere endnu."); return; }
+    if (State.query.trim() && !visibleServers().length) {
+      setFleetStatus('Ingen servere matcher "' + State.query.trim() + '".');
+      return;
+    }
+    setFleetStatus(null);
   }
 
   function ensureCompanyId() {
@@ -406,9 +541,25 @@
     });
   }
 
-  // The fleet roster: every service client the company has, with its real
-  // name/ip and GUID clientId. Never rejects — a failure just means an
-  // empty fleet (same as a company with no servers yet).
+  // The server-type catalog for the group headers/filter dropdown. Loaded once at startup, not on every poll tick — it rarely changes. Never rejects — a failure just means no types to group/filter by.
+  function loadServerTypes() {
+    return NWApi.get("/ServerTypes").then(function (types) {
+      State.serverTypes = types || [];
+      renderTypeFilterOptions();
+    }).catch(function () {
+      State.serverTypes = [];
+    });
+  }
+
+  function renderTypeFilterOptions() {
+    var select = document.getElementById("server-type-filter");
+    select.innerHTML = '<option value="">Alle typer</option>' + State.serverTypes.map(function (t) {
+      return '<option value="' + t.id + '">' + esc(t.serverTypeName) + '</option>';
+    }).join("");
+    select.value = State.typeFilter;
+  }
+
+  // The fleet roster. Never rejects — a failure just means an empty fleet.
   function loadServerInfo(companyId) {
     return NWApi.get("/ServerService/GetAll/" + companyId).then(function (rows) {
       return rows || [];
@@ -417,9 +568,7 @@
     });
   }
 
-  // One server's reading history, by its GUID clientId. Never rejects — a
-  // failure (or a server that hasn't reported yet) just means no history,
-  // same as a freshly-added server.
+  // One server's reading history. Never rejects — no data just means no history.
   function loadHardwareData(companyId, clientId) {
     return NWApi.get("/CompanyHardwareData/GetHardwareData/" + companyId + "?clientId=" + encodeURIComponent(clientId)).then(function (rows) {
       return rows || [];
@@ -428,85 +577,73 @@
     });
   }
 
-  // How many recent readings the trend chart keeps per server — a company
-  // can have arbitrarily many historical rows in companyhardwaredata; the
-  // chart only needs a recent-trend window, not the full log.
-  var HISTORY_LIMIT = 30;
-
-  // Combines one server's roster info with its reading history into the
-  // shapes render()/mapHardwareRows' old callers expect: keeps the most
-  // recent HISTORY_LIMIT readings (oldest first) for the trend chart, and
-  // treats the last one as that server's current snapshot for the fleet
-  // list/gauges. A server with no readings yet gets zeroed-out gauges and
-  // an empty trend history (renderTrend already handles history.length < 2).
+  // Combines a server's roster info with its reading history: the last reading is the current snapshot, the full history feeds the trend chart.
   function buildServer(info, readings) {
-    var trimmed = readings.slice().sort(function (a, b) { return a.id - b.id; });
-    if (trimmed.length > HISTORY_LIMIT) trimmed = trimmed.slice(trimmed.length - HISTORY_LIMIT);
+    var sorted = readings.slice().sort(function (a, b) { return a.id - b.id; });
 
-    var history = trimmed.map(function (row) {
+    var history = sorted.map(function (row) {
       return {
         cpuUsage: row.cpuUsages,
         ramUsage: row.ramUsage / 1024,
         ramTotal: row.ramTotal / 1024,
         diskTotalSpace: row.diskTotalSpace,
         diskRemainingSpace: row.diskRemainingSpace,
+        NetworkBytesSent: row.networkBytesSent,
+        NetworkBytesReceived: row.networkBytesReceived,
         createdAt: row.createdAt ? new Date(row.createdAt) : null
       };
     });
 
-    var latest = history[history.length - 1] || { cpuUsage: 0, ramUsage: 0, ramTotal: 0, diskTotalSpace: 0, diskRemainingSpace: 0 };
+    var latest = history[history.length - 1] || { cpuUsage: 0, ramUsage: 0, ramTotal: 0, diskTotalSpace: 0, diskRemainingSpace: 0, NetworkBytesSent: 0, NetworkBytesReceived: 0 };
 
     return {
       server: {
         id: info.clientId,
         serverName: info.serverName,
         ipAddress: info.ipAddress,
+        serverTypeId: info.serverTypeId,
         cpuUsage: latest.cpuUsage,
         ramUsage: latest.ramUsage,
         ramTotal: latest.ramTotal,
         diskTotalSpace: latest.diskTotalSpace,
-        diskRemainingSpace: latest.diskRemainingSpace
+        diskRemainingSpace: latest.diskRemainingSpace,
+        NetworkBytesSent: latest.NetworkBytesSent,
+        NetworkBytesReceived: latest.NetworkBytesReceived
       },
       history: history
     };
   }
 
-  function loadServers() {
-    setFleetStatus("Indlæser servere…");
-    return ensureCompanyId().then(function (companyId) {
-      return loadServerInfo(companyId).then(function (serverInfoList) {
-        return Promise.all(serverInfoList.map(function (info) {
-          return loadHardwareData(companyId, info.clientId).then(function (readings) {
-            return buildServer(info, readings);
-          });
-        }));
-      });
-    }).then(function (built) {
+  async function loadServers() {
+    if (!State.servers.length) setFleetStatus("Indlæser servere…");
+    try {
+      var companyId = await ensureCompanyId();
+      var serverInfoList = await loadServerInfo(companyId);
+      var built = await Promise.all(serverInfoList.map(async function (info) {
+        var readings = await loadHardwareData(companyId, info.clientId);
+        return buildServer(info, readings);
+      }));
+
       State.servers = built.map(function (b) { return b.server; });
       State.history = {};
       built.forEach(function (b) { State.history[b.server.id] = b.history; });
       if (State.selected == null || !getSelected()) {
         State.selected = State.servers.length ? State.servers[0].id : null;
       }
-      setFleetStatus(State.servers.length ? null : "Ingen servere endnu.");
       renderClock();
       render();
-    }).catch(function (err) {
+    } catch (err) {
       setFleetStatus("Kunne ikke hente servere: " + err.message);
-    });
+    }
   }
 
-  // Refetches just one server's own reading history (not the whole fleet)
-  // and re-renders — used when opening/switching to a server's detail view,
-  // so it shows its newest data right away instead of whatever the last
-  // 15s fleet poll happened to have. Reuses its already-known serverName/
-  // ipAddress/clientId from State.servers rather than re-fetching the roster.
+  // Refetches just one server's history and re-renders — used when opening its detail view, so it shows fresh data right away.
   function refreshServerData(clientId) {
     var existing = getSelected();
     if (!existing || existing.id !== clientId || !State.companyId) return;
 
     return loadHardwareData(State.companyId, clientId).then(function (readings) {
-      var built = buildServer({ clientId: clientId, serverName: existing.serverName, ipAddress: existing.ipAddress }, readings);
+      var built = buildServer({ clientId: clientId, serverName: existing.serverName, ipAddress: existing.ipAddress, serverTypeId: existing.serverTypeId }, readings);
       var index = State.servers.findIndex(function (s) { return s.id === clientId; });
       if (index === -1) return;
       State.servers[index] = built.server;
@@ -558,9 +695,29 @@
       State.trendView = State.trendView === "table" ? "chart" : "table";
       applyTrendView();
     });
+    document.getElementById("server-search").addEventListener("input", function (e) {
+      State.query = e.target.value;
+      render();
+    });
+    document.getElementById("server-type-filter").addEventListener("change", function (e) {
+      State.typeFilter = e.target.value;
+      render();
+    });
+
+    var intervalSelect = document.getElementById("graph-interval");
+    intervalSelect.innerHTML = TREND_RANGES.map(function (r) {
+      return '<option value="' + r.key + '">' + esc(r.label) + '</option>';
+    }).join("");
+    intervalSelect.value = State.trendRange;
+    intervalSelect.addEventListener("change", function (e) {
+      State.trendRange = e.target.value;
+      var sel = getSelected();
+      if (sel) renderTrend(sel);
+    });
 
     renderLiveStatus();
     setView(State.view);
+    loadServerTypes();
     loadServers();
     scheduleTick();
   });

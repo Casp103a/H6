@@ -13,6 +13,7 @@ namespace NimbusWatchApi.Database
     IServiceClientTableManager ServiceClients { get; }
     ICompanyHardwareDataTableManager CompanyHardwareData { get; }
     ICompanyServiceStatusTableManager CompanyServiceStatus { get; }
+    IServerTypesTableManager ServerTypes { get; }
 
     Task EnsureCompanyTables(string companyId);
     Task SetupDatabase(CancellationToken cancellationToken = default);
@@ -32,6 +33,7 @@ namespace NimbusWatchApi.Database
       ServiceClients = new ServiceClientTableManager(_connectionString);
       CompanyHardwareData = new CompanyHardwareDataTableManager(_connectionString);
       CompanyServiceStatus = new CompanyServiceStatusTableManager(_connectionString);
+      ServerTypes = new ServerTypesTableManager(_connectionString);
     }
 
     public IRefreshTokenTableManager RefreshTokens { get; }
@@ -41,6 +43,7 @@ namespace NimbusWatchApi.Database
     public IServiceClientTableManager ServiceClients { get; }
     public ICompanyHardwareDataTableManager CompanyHardwareData { get; }
     public ICompanyServiceStatusTableManager CompanyServiceStatus { get; }
+    public IServerTypesTableManager ServerTypes { get; }
 
     public async Task SetupDatabase(CancellationToken cancellationToken = default)
     {
@@ -56,7 +59,11 @@ namespace NimbusWatchApi.Database
       if (!await TableExists("roles"))
         await CreateRoleTable();
 
+      if (!await TableExists("servertypes"))
+        await CreateServerTypeTable();
+
       await SetupRoles();
+      await SetupServerTypes();
 
       // Per-company tables for every company that already exists.
       foreach (var company in await Companys.GetAllCompanies())
@@ -170,6 +177,31 @@ namespace NimbusWatchApi.Database
       }
     }
 
+    private async Task CreateServerTypeTable()
+    {
+      await using var connection = await OpenConnection();
+      await using var cmd = connection.CreateCommand();
+      cmd.CommandText = """
+        CREATE TABLE IF NOT EXISTS servertypes (
+        Id INT AUTO_INCREMENT PRIMARY KEY,
+        ServerTypeName VARCHAR(255) NOT NULL UNIQUE
+        );
+        """;
+      await cmd.ExecuteNonQueryAsync();
+    }
+
+    private async Task SetupServerTypes()
+    {
+      var serverTypes = Enum.GetValues(typeof(ServerTypesEnums)).Cast<ServerTypesEnums>().Select(st => st.ToString()).ToList();
+      foreach (var serverType in serverTypes)
+      {
+        if (!await ServerTypes.DoesServerTypeExist(serverType))
+        {
+          await ServerTypes.CreateServerType(serverType);
+        }
+      }
+    }
+
     public async Task EnsureCompanyTables(string companyId)
     {
       var serviceClientsTable = CompanyTableNames.ServiceClients(companyId);
@@ -195,10 +227,14 @@ namespace NimbusWatchApi.Database
         ClientSecretHash VARCHAR(255) NOT NULL,
         ServerName VARCHAR(255) NOT NULL,
         IpAddress VARCHAR(45) NOT NULL,
+        ServerTypeId INT NOT NULL,
         RoleId INT NOT NULL,
         IsActive BOOLEAN NOT NULL,
         CreatedAt DATETIME NOT NULL,
         UpdatedAt DATETIME NOT NULL,
+        CONSTRAINT `FK_{tableName}_ServerTypes_ServerTypeId`
+          FOREIGN KEY (ServerTypeId) REFERENCES servertypes(Id)
+          ON DELETE CASCADE,
         CONSTRAINT `FK_{tableName}_Roles_RoleId`
           FOREIGN KEY (RoleId) REFERENCES roles(Id)
           ON DELETE CASCADE

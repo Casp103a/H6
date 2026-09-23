@@ -1,17 +1,10 @@
 /* ==========================================================================
-   Create-user form — POST /api/user/register takes email, password, roleId
-   (picked from GET /api/role) and companyId (the logged-in user's own
-   company, from GET /api/company) — no fullName/phone at creation time.
-   On success, goes back to users.php.
+   Create-user form — POST /api/user/register (email, password, roleId,
+   companyId). roleId comes from GET /api/role, companyId from
+   GET /api/company. On success, goes back to users.php.
 
-   Admin-only page: the Users nav link is already hidden from non-admins
-   (see common.js's initUsersNavVisibility), but that just hides the entry
-   point — a non-admin could still navigate here directly and see the form
-   (POST /user/register itself is [Authorize(Roles = "Admin")], so it would
-   403 on submit, but the page would still be visible up to that point).
-   This redirects them straight back to the dashboard before the form
-   (roles/company fetch) ever initializes — same pattern as
-   create-server.js's guard.
+   Admin-only page: this is just a client-side redirect gate, same pattern
+   as create-server.js — the API also enforces Admin-only on submit.
    ========================================================================== */
 (function () {
   "use strict";

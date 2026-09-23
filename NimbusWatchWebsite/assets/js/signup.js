@@ -40,9 +40,7 @@
       var email = data.get("email").trim();
       var password = data.get("password");
 
-      // Not atomic from here: if user-create fails after this, the company
-      // still exists with no admin. That needs a real transaction on the
-      // API side to fully close; this is the best the frontend alone can do.
+      // Not atomic: if user-create fails after this, the company exists with no admin. Needs a real transaction on the API side.
       return NWApi.get("/role").then(function (roles) {
         var adminRole = roles.find(function (role) { return role.name === "Admin"; });
         if (!adminRole) {

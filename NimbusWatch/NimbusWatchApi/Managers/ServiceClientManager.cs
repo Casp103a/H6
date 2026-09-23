@@ -36,6 +36,7 @@ namespace NimbusWatchApi.Managers
         ClientId = clientId,
         ServerName = client.Name,
         IpAddress = client.IpAddress,
+        ServerTypeId = client.ServerTypeId,
         IsActive = true,
         ClientSecretHash = clientSecretService.HashSecret(plainSecret),
         CreatedAt = DateTime.UtcNow,

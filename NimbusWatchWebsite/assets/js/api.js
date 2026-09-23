@@ -1,15 +1,8 @@
 /* ==========================================================================
    Shared API client. Cookie-based session (credentials: "include" on every
-   request, access token lives in the cookie itself — never touched from JS)
-   — see each page's own script (login.js, signup.js, dashboard.js, users.js)
-   for the specific endpoints it calls.
-
-   A 401 from any call (other than the token endpoints and login itself)
-   triggers one silent POST /token/RefreshToken before failing — that's the
-   access-token cookie being renewed from the refresh token, same idea as
-   this app's Angular AuthService. Concurrent 401s share one refresh call
-   instead of firing one each. If refresh also fails, the original 401 is
-   what callers see.
+   request, access token never touched from JS). A 401 triggers one silent
+   POST /token/RefreshToken before failing (concurrent 401s share that one
+   refresh call); if refresh also fails, callers see the original 401.
    ========================================================================== */
 window.NWApi = (function () {
   "use strict";
@@ -35,10 +28,7 @@ window.NWApi = (function () {
     });
   }
 
-  // For endpoints that respond with a raw file body (e.g. application/
-  // octet-stream) instead of JSON. Mirrors rawRequest/request below but
-  // resolves the successful body as a Blob; an error response is still
-  // read as JSON for its message, same as the JSON path.
+  // Mirrors rawRequest, but resolves the successful body as a Blob (for file-download endpoints) instead of JSON.
   function rawRequestBlob(method, path, body) {
     var opts = {
       method: method,
