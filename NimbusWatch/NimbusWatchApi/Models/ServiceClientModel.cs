@@ -25,6 +25,9 @@ namespace NimbusWatchApi.Models
     public string IpAddress { get; set; }
 
     [Required]
+    public int ServerTypeId { get; set; }
+
+    [Required]
     public bool IsActive { get; set; }
 
     [Required]

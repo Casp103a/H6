@@ -5,10 +5,7 @@ declare(strict_types=1);
 $brandName = 'Nimbus Watch';
 $pageTitle = 'Rediger profil';
 $isDashboard = false;
-// The logged-in user's own info is loaded/saved client-side by
-// assets/js/profile-edit.js via GET GetCurrentUserInfo / PUT UpdateProfile.
-// Open to every role — unlike users.php/user-detail.php, this only ever
-// edits the caller's own email/password, never the role.
+// Loaded/saved client-side by assets/js/profile-edit.js. Open to every role — it only ever edits the caller's own email/password, never the role.
 ?>
 <!DOCTYPE html>
 <html lang="da">

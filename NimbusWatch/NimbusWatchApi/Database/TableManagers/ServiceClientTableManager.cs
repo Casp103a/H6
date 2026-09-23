@@ -28,14 +28,15 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = $"""
-        INSERT INTO `{table}` (ClientId, ClientSecretHash, ServerName, IpAddress, RoleId, IsActive, CreatedAt, UpdatedAt)
-        VALUES (@ClientId, @ClientSecretHash, @ServerName, @IpAddress, @RoleId, @IsActive, @CreatedAt, @UpdatedAt);
+        INSERT INTO `{table}` (ClientId, ClientSecretHash, ServerName, IpAddress, ServerTypeId, RoleId, IsActive, CreatedAt, UpdatedAt)
+        VALUES (@ClientId, @ClientSecretHash, @ServerName, @IpAddress, @ServerTypeId, @RoleId, @IsActive, @CreatedAt, @UpdatedAt);
         """;
 
       cmd.Parameters.AddWithValue("@ClientId", client.ClientId.ToString());
       cmd.Parameters.AddWithValue("@ClientSecretHash", client.ClientSecretHash);
       cmd.Parameters.AddWithValue("@ServerName", client.ServerName);
       cmd.Parameters.AddWithValue("@IpAddress", client.IpAddress);
+      cmd.Parameters.AddWithValue("@ServerTypeId", client.ServerTypeId);
       cmd.Parameters.AddWithValue("@RoleId", client.RoleId);
       cmd.Parameters.AddWithValue("@IsActive", client.IsActive);
       cmd.Parameters.AddWithValue("@CreatedAt", client.CreatedAt);
@@ -56,6 +57,7 @@ namespace NimbusWatchApi.Database.TableManagers
         SET ClientSecretHash = @ClientSecretHash,
             ServerName = @ServerName,
             IpAddress = @IpAddress,
+            ServerTypeId = @ServerTypeId,
             RoleId = @RoleId,
             IsActive = @IsActive,
             UpdatedAt = @UpdatedAt
@@ -66,6 +68,7 @@ namespace NimbusWatchApi.Database.TableManagers
       cmd.Parameters.AddWithValue("@ClientSecretHash", client.ClientSecretHash);
       cmd.Parameters.AddWithValue("@ServerName", client.ServerName);
       cmd.Parameters.AddWithValue("@IpAddress", client.IpAddress);
+      cmd.Parameters.AddWithValue("@ServerTypeId", client.ServerTypeId);
       cmd.Parameters.AddWithValue("@RoleId", client.RoleId);
       cmd.Parameters.AddWithValue("@IsActive", client.IsActive);
       cmd.Parameters.AddWithValue("@UpdatedAt", client.UpdatedAt);
@@ -95,7 +98,7 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = $"""
-        SELECT Id, ClientId, ClientSecretHash, ServerName, IpAddress, RoleId, IsActive, CreatedAt, UpdatedAt
+        SELECT Id, ClientId, ClientSecretHash, ServerName, IpAddress, ServerTypeId, RoleId, IsActive, CreatedAt, UpdatedAt
         FROM `{table}`;
         """;
 
@@ -122,7 +125,7 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = $"""
-        SELECT Id, ClientId, ClientSecretHash, ServerName, IpAddress, RoleId, IsActive, CreatedAt, UpdatedAt
+        SELECT Id, ClientId, ClientSecretHash, ServerName, IpAddress, ServerTypeId, RoleId, IsActive, CreatedAt, UpdatedAt
         FROM `{table}`
         WHERE ClientId = @ClientId
         LIMIT 1;
@@ -142,7 +145,7 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = $"""
-        SELECT Id, ClientId, ClientSecretHash, ServerName, IpAddress, RoleId, IsActive, CreatedAt, UpdatedAt
+        SELECT Id, ClientId, ClientSecretHash, ServerName, IpAddress, ServerTypeId, RoleId, IsActive, CreatedAt, UpdatedAt
         FROM `{table}`;
         """;
 
@@ -163,6 +166,7 @@ namespace NimbusWatchApi.Database.TableManagers
         ClientSecretHash = reader.GetString("ClientSecretHash"),
         ServerName = reader.GetString("ServerName"),
         IpAddress = reader.GetString("IpAddress"),
+        ServerTypeId = reader.GetInt32("ServerTypeId"),
         RoleId = reader.GetInt32("RoleId"),
         IsActive = reader.GetBoolean("IsActive"),
         CreatedAt = reader.GetDateTime("CreatedAt"),

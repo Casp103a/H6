@@ -75,7 +75,8 @@ namespace NimbusWatchApi.Controllers
         {
           ServerName = result.ServerName,
           IpAddress = result.IpAddress,
-          ClientId = result.ClientId.ToString()
+          ClientId = result.ClientId.ToString(),
+          ServerTypeId = result.ServerTypeId
         };
 
         return Ok(serverInfo);
@@ -98,7 +99,8 @@ namespace NimbusWatchApi.Controllers
         {
           ServerName = r.ServerName,
           IpAddress = r.IpAddress,
-          ClientId = r.ClientId.ToString()
+          ClientId = r.ClientId.ToString(),
+          ServerTypeId = r.ServerTypeId
         });
 
         return Ok(serverInfos);

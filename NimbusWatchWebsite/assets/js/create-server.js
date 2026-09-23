@@ -1,9 +1,20 @@
 /* ==========================================================================
-   Create server — POST /api/ServerService/Add { name, ipAddress, companyId },
-   matching CreateServerServiceDto. Registers a service-client identity for
-   the monitoring agent that will run on that server. companyId comes from
-   GET /api/company (cookie-scoped, no params — same "your own company" call
-   used by login.js/users.js), fetched once when the page loads.
+   Create server — POST /api/ServerService/Add { name, ipAddress, companyId,
+   serverTypeId, servicesToMonitor }, matching CreateServerServiceDto.
+   Registers a service-client identity for the monitoring agent that will
+   run on that server.
+
+   serverTypeId and servicesToMonitor are two unrelated fields: serverTypeId
+   is a fixed category of the server itself (from GET /api/ServerTypes,
+   backed by the servertypes table) and is persisted on the service client
+   row. servicesToMonitor is the list of *other* service names this agent
+   should watch the status of ([{ name }, ...], matching
+   CreateServiceMonitorDto) and is written into the downloaded config's
+   Services list instead — it never touches the database.
+
+   companyId comes from GET /api/company (cookie-scoped, no params — same
+   "your own company" call used by login.js/users.js), fetched once when
+   the page loads.
 
    Known backend gap: companyId is currently accepted by the DTO but never
    persisted (the serviceclients table has no CompanyId column), so a created
@@ -28,9 +39,46 @@
 (function () {
   "use strict";
 
+  var esc = NW.esc;
+
   var CONFIG_FILE_NAME = "Service_Config.config";
 
-  var State = { companyId: null };
+  var State = { companyId: null, serverTypes: [], watchedServices: [] };
+
+  function renderWatchedServices() {
+    var list = document.getElementById("watched-service-items");
+    list.innerHTML = "";
+
+    State.watchedServices.forEach(function (name, index) {
+      var item = document.createElement("li");
+      item.className = "watch-list__item";
+      item.textContent = name;
+
+      var remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "watch-list__item-remove";
+      remove.setAttribute("aria-label", "Fjern " + name);
+      remove.textContent = "×";
+      remove.addEventListener("click", function () {
+        State.watchedServices.splice(index, 1);
+        renderWatchedServices();
+      });
+
+      item.appendChild(remove);
+      list.appendChild(item);
+    });
+  }
+
+  function addWatchedService() {
+    var input = document.getElementById("watched-service-input");
+    var name = input.value.trim();
+    if (!name || State.watchedServices.indexOf(name) !== -1) return;
+
+    State.watchedServices.push(name);
+    input.value = "";
+    renderWatchedServices();
+    input.focus();
+  }
 
   function downloadConfigFile(blob) {
     var url = URL.createObjectURL(blob);
@@ -57,6 +105,17 @@
     });
   }
 
+  function loadServerTypes() {
+    return NWApi.get("/ServerTypes").then(function (serverTypes) {
+      State.serverTypes = serverTypes || [];
+      document.getElementById("server-type").innerHTML = State.serverTypes.map(function (t) {
+        return '<option value="' + t.id + '">' + esc(t.serverTypeName) + '</option>';
+      }).join("");
+    }).catch(function (err) {
+      setError("Kunne ikke hente servertyper: " + err.message);
+    });
+  }
+
   function goToDashboard() {
     window.location.href = "index.php";
   }
@@ -67,7 +126,14 @@
     document.getElementById("back-to-dashboard").addEventListener("click", goToDashboard);
     document.getElementById("cancel-create-server").addEventListener("click", goToDashboard);
 
-    loadCurrentCompany();
+    document.getElementById("watched-service-add").addEventListener("click", addWatchedService);
+    document.getElementById("watched-service-input").addEventListener("keydown", function (e) {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      addWatchedService();
+    });
+
+    Promise.all([loadCurrentCompany(), loadServerTypes()]);
 
     form.addEventListener("submit", function (e) {
       e.preventDefault();
@@ -77,7 +143,11 @@
       var body = {
         name: data.get("server-name").trim(),
         ipAddress: data.get("server-ip").trim(),
-        companyId: State.companyId
+        companyId: State.companyId,
+        serverTypeId: parseInt(data.get("server-type"), 10),
+        servicesToMonitor: State.watchedServices.map(function (name) {
+          return { name: name };
+        })
       };
 
       NWApi.postBlob("/ServerService/Add", body).then(function (configFile) {

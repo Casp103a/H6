@@ -5,6 +5,7 @@
     public string Name { get; set; }
     public string IpAddress { get; set; }
     public string CompanyId { get; set; }
+    public int ServerTypeId { get; set; }
 
     public List<CreateServiceMonitorDto> ServicesToMonitor { get; set; }
   }
