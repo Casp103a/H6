@@ -49,6 +49,7 @@ $isDashboard = false;
                 <label class="field">
                     <span class="field__label">Rolle</span>
                     <select name="roleId" id="edit-user-role" required></select>
+                    <span id="edit-user-role-note" class="field__label" hidden>Du kan ikke ændre din egen rolle.</span>
                 </label>
                 <p id="edit-user-error" class="form-error" hidden></p>
                 <div class="user-form__actions">

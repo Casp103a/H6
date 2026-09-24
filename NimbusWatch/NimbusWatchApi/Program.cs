@@ -105,6 +105,7 @@ namespace NimbusWatchApi
       builder.Services.AddScoped<ICompanyHardwareDataManager, CompanyHardwareDataManager>();
       builder.Services.AddScoped<IServerTypesManager, ServerTypesManager>();
       builder.Services.AddScoped<ICompanyServiceStatusManager, CompanyServiceStatusManager>();
+      builder.Services.AddScoped<IUserProfileManager, UserProfileManager>();
       builder.Services.AddSingleton<IClientSecretService, ClientSecretService>();
       builder.Services.AddSingleton<ServiceConnectionStore>();
 

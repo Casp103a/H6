@@ -14,6 +14,7 @@ namespace NimbusWatchApi.Database
     ICompanyHardwareDataTableManager CompanyHardwareData { get; }
     ICompanyServiceStatusTableManager CompanyServiceStatus { get; }
     IServerTypesTableManager ServerTypes { get; }
+    IUserProfileTableManager UserProfiles { get; }
 
     Task EnsureCompanyTables(string companyId);
     Task SetupDatabase(CancellationToken cancellationToken = default);
@@ -34,6 +35,7 @@ namespace NimbusWatchApi.Database
       CompanyHardwareData = new CompanyHardwareDataTableManager(_connectionString);
       CompanyServiceStatus = new CompanyServiceStatusTableManager(_connectionString);
       ServerTypes = new ServerTypesTableManager(_connectionString);
+      UserProfiles = new UserProfileTableManager(_connectionString);
     }
 
     public IRefreshTokenTableManager RefreshTokens { get; }
@@ -44,6 +46,7 @@ namespace NimbusWatchApi.Database
     public ICompanyHardwareDataTableManager CompanyHardwareData { get; }
     public ICompanyServiceStatusTableManager CompanyServiceStatus { get; }
     public IServerTypesTableManager ServerTypes { get; }
+    public IUserProfileTableManager UserProfiles { get; }
 
     public async Task SetupDatabase(CancellationToken cancellationToken = default)
     {
@@ -61,6 +64,9 @@ namespace NimbusWatchApi.Database
 
       if (!await TableExists("servertypes"))
         await CreateServerTypeTable();
+
+      if (!await TableExists("userprofiles"))
+        await CreateUserProfileTable();
 
       await SetupRoles();
       await SetupServerTypes();
@@ -283,5 +289,23 @@ namespace NimbusWatchApi.Database
         );
         """);
     }
-  }
+
+    private async Task CreateUserProfileTable()
+    {
+      await using var connection = await OpenConnection();
+      await using var cmd = connection.CreateCommand();
+      cmd.CommandText = """
+        CREATE TABLE IF NOT EXISTS userprofiles (
+        Id INT AUTO_INCREMENT PRIMARY KEY,
+        UserId INT NOT NULL UNIQUE,
+        FullName VARCHAR(255) NOT NULL,
+        PhoneNumber VARCHAR(50) NOT NULL,
+        CONSTRAINT FK_UserProfiles_Users_UserId
+          FOREIGN KEY (UserId) REFERENCES users(Id)
+          ON DELETE CASCADE
+        );
+        """;
+       await cmd.ExecuteNonQueryAsync();
+      }
+    }
 }
