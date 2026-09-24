@@ -5,7 +5,7 @@ declare(strict_types=1);
 $brandName = 'Nimbus Watch';
 $pageTitle = 'Serverovervågning';
 // Servers are loaded client-side from GET /api/CompanyHardwareData/GetAll/{companyId}
-// by assets/js/fleet.js (shared roster/history + header) and rendered
+// by assets/js/dataprovider.js (shared roster/history + header) and rendered
 // here by assets/js/dashboard.js. Clicking a server navigates to
 // server-detail.php?id={clientId}, which renders its single-server view.
 // No fake/local data.
@@ -23,7 +23,7 @@ $pageTitle = 'Serverovervågning';
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800|jost:300,500" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="/assets/css/tokens.css">
+    <link rel="stylesheet" href="/assets/css/theme.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
 </head>
 
@@ -48,7 +48,7 @@ $pageTitle = 'Serverovervågning';
 
     <script src="/assets/js/api.js"></script>
     <script src="/assets/js/common.js"></script>
-    <script src="/assets/js/fleet.js"></script>
+    <script src="/assets/js/dataprovider.js"></script>
     <script src="/assets/js/dashboard.js"></script>
 </body>
 

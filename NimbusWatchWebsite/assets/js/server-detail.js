@@ -7,7 +7,7 @@
 
    This file only reads the selected id from the URL and renders around it.
    The server roster/reading history and the shared header controls (search,
-   filter, live/pause) live in fleet.js instead.
+   filter, live/pause) live in dataprovider.js instead.
 
    Picking a different server in the sidebar loads that server's own URL —
    it's a real navigation, not a content swap — so the URL always matches

@@ -1,7 +1,7 @@
 /* ==========================================================================
    Fleet overview grid (index.php). The roster/reading history, status
    helpers, and header controls (clock, live/pause, search, type filter) live
-   in fleet.js, shared with the single-server view in server-detail.php
+   in dataprovider.js, shared with the single-server view in server-detail.php
    — this file only renders the grid and reacts to clicking a server, which
    navigates to server-detail.php?id={clientId}.
    ========================================================================== */

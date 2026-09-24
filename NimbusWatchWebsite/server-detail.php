@@ -6,7 +6,7 @@ $brandName = 'Nimbus Watch';
 $pageTitle = 'Server';
 // Reached as server-detail.php?id={clientId} (see the fleet-card/server-row
 // links in dashboard.js and server-detail.js). The id is read and validated
-// client-side against the roster loaded by assets/js/fleet.js — there's
+// client-side against the roster loaded by assets/js/dataprovider.js — there's
 // no server-side lookup here, same as the rest of this app's data.
 ?>
 <!DOCTYPE html>
@@ -22,7 +22,7 @@ $pageTitle = 'Server';
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800|jost:300,500" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="/assets/css/tokens.css">
+    <link rel="stylesheet" href="/assets/css/theme.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/server-detail.css">
 </head>
@@ -142,7 +142,7 @@ $pageTitle = 'Server';
     <script src="/assets/js/api.js"></script>
     <script src="/assets/js/common.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
-    <script src="/assets/js/fleet.js"></script>
+    <script src="/assets/js/dataprovider.js"></script>
     <script src="/assets/js/server-detail.js"></script>
 </body>
 

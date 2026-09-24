@@ -6,7 +6,7 @@
 window.NW = (function () {
   "use strict";
 
-  // No color VALUES live here, only CSS custom properties from tokens.css — change the look by editing tokens.css, not here.
+  // No color VALUES live here, only CSS custom properties from theme.css — change the look by editing theme.css, not here.
   var colors = {
     OK: "var(--nf-success)",
     WARN: "var(--nf-warning)",
