@@ -30,6 +30,7 @@ namespace ServerService
       builder.Services.AddSingleton<IServiceReader, ServiceReader>();
       builder.Services.AddTransient<AuthHeaderHandler>();
       builder.Services.AddHostedService<Worker>();
+      builder.Services.AddHostedService<ConfigurationSyncService>();
 
       builder.Services.AddHttpClient("TokenClient")
         .ConfigureHttpClient((sp, client) =>

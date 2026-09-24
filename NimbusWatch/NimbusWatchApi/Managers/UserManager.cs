@@ -50,7 +50,8 @@ namespace NimbusWatchApi.Managers
           RoleId = userDto.RoleId,
           IsActive = true,
           CreatedAt = DateTime.UtcNow,
-          CompanyId = userDto.CompanyId
+          CompanyId = userDto.CompanyId,
+          PublicId = Guid.NewGuid()
         };
 
         await databaseManager.Users.AddUser(userModel);

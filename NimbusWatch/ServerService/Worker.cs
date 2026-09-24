@@ -100,11 +100,17 @@ namespace ServerService
 
       var json = JsonSerializer.Serialize(serviceDto, AppJsonSerializerContext.Default.CompanyHardwareDataDto);
 
-      var response = await httpClient.PostAsync($"api/CompanyHardwareData/Add/{companyId}", new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+      var response = await httpClient.PostAsync(
+          $"api/CompanyHardwareData/Add/{companyId}",
+          new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
 
       if (!response.IsSuccessStatusCode)
       {
-        logger.LogError("Failed to report hardware data: {statusCode}", response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        logger.LogError(
+            "Failed to report hardware data: {StatusCode}. Body: {Body}",
+            response.StatusCode,
+            body);
       }
 
       var statuses = serviceReader.LookAtStatuses();
@@ -118,11 +124,17 @@ namespace ServerService
         };
 
         var reportJson = JsonSerializer.Serialize(report, AppJsonSerializerContext.Default.ServiceReportDto);
-        var reportResponse = await httpClient.PostAsync($"api/ServiceStatus/Add/{configReader.Configuration.CompanyId}", new StringContent(reportJson, System.Text.Encoding.UTF8, "application/json"));
+        var reportResponse = await httpClient.PostAsync(
+            $"api/ServiceStatus/Add/{configReader.Configuration.CompanyId}",
+            new StringContent(reportJson, System.Text.Encoding.UTF8, "application/json"));
 
         if (!reportResponse.IsSuccessStatusCode)
         {
-          logger.LogError("Failed to report service statuses: {statusCode}", reportResponse.StatusCode);
+          var body = await reportResponse.Content.ReadAsStringAsync();
+          logger.LogError(
+              "Failed to report service statuses: {StatusCode}. Body: {Body}",
+              reportResponse.StatusCode,
+              body);
         }
       }
 

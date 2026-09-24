@@ -57,7 +57,8 @@ namespace NimbusWatchApi.Controllers
         {
           Id = u.Id,
           Email = u.Email,
-          RoleId = u.RoleId
+          RoleId = u.RoleId,
+          PublicId = u.PublicId,
         }).ToList();
 
         return Ok(userDtos);
@@ -89,7 +90,8 @@ namespace NimbusWatchApi.Controllers
       {
         Id = user.Id,
         Email = user.Email,
-        RoleId = user.RoleId
+        RoleId = user.RoleId,
+        PublicId = user.PublicId,
       };
 
       return Ok(userInfoDto);
@@ -106,7 +108,7 @@ namespace NimbusWatchApi.Controllers
         if (user == null)
           return NotFound();
 
-        return Ok(new UserInfoDto { Id = user.Id, Email = user.Email, RoleId = user.RoleId });
+        return Ok(new UserInfoDto { Id = user.Id, Email = user.Email, RoleId = user.RoleId, PublicId = user.PublicId });
       }
       catch (Exception ex)
       {

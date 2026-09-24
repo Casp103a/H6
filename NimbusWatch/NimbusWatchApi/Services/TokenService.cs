@@ -57,6 +57,7 @@ namespace NimbusWatchApi.Services
 
       var claims = new List<Claim>
       {
+        new Claim(ClaimTypes.NameIdentifier, user.PublicId.ToString()),
         new Claim(JwtRegisteredClaimNames.GivenName, user.Email ?? string.Empty),
         new Claim(ClaimTypes.Name, user.Email ?? string.Empty),
         new Claim(ClaimTypes.Role, role.Name ?? string.Empty),
