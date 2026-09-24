@@ -1,0 +1,21 @@
+/* ==========================================================================
+   Service-configuration form — standalone task page, same centered layout
+   as create-server.css. Reuses .card, .field, .form-error, .back-link,
+   .btn, .watch-list* from dashboard.css/create-server.css's shared markup
+   rather than redefining them.
+   ========================================================================== */
+
+.server-config { padding: 24px 28px 40px; max-width: 480px; margin: 0 auto; }
+.server-config__title { margin: 4px 0 4px; text-align: center; }
+.server-config__subtitle { margin: 0 0 20px; text-align: center; color: var(--nf-text-muted); }
+
+.server-config__form { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.server-config__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+@media (max-width: 900px) {
+    .server-config { padding: 16px 16px 32px; max-width: none; }
+}
+
+@media (max-width: 480px) {
+    .server-config__form { padding: 16px; }
+}
