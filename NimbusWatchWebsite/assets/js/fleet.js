@@ -211,6 +211,7 @@ window.NWFleet = (function () {
     return {
       server: {
         id: info.clientId,
+        serviceId: sorted.length ? sorted[sorted.length - 1].serviceId : null,
         serverName: info.serverName,
         ipAddress: info.ipAddress,
         serverTypeId: info.serverTypeId,

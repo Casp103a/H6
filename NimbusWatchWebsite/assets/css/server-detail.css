@@ -105,8 +105,9 @@
     position: absolute; inset: 7px; background: var(--nf-base-100); border-radius: 999px;
     display: grid; place-items: center;
     font-size: 13px; font-weight: 700; color: var(--nf-text-heading);
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
 }
+.gauge-ring__value--compact { font-size: 11px; letter-spacing: -0.02em; }
 .gauge-card__text { min-width: 0; }
 .gauge-card__label { font-size: 12px; font-weight: 600; color: var(--nf-text-muted); }
 .gauge-card__value {
@@ -149,6 +150,8 @@
 .volume__track { height: 6px; border-radius: 999px; background: var(--nf-track-bg); overflow: hidden; }
 .volume__fill { height: 100%; border-radius: 999px; }
 .volume__note { font-size: 11px; color: var(--nf-text-muted); margin-top: 4px; }
+
+.services-card { padding: 18px; }
 
 .disk-stats {
     margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--nf-hairline);

@@ -118,6 +118,23 @@ $pageTitle = 'Server';
                     </div>
                 </div>
 
+                <div class="card services-card">
+                    <div class="disk-card__title">Services med fejl</div>
+                    <div id="services-table-wrap" class="scroll-shell" hidden>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th class="is-left">Service</th>
+                                    <th class="is-left">Status</th>
+                                    <th class="is-right">Sidst rapporteret</th>
+                                </tr>
+                            </thead>
+                            <tbody id="services-table-body"></tbody>
+                        </table>
+                    </div>
+                    <p id="services-empty" class="empty-note">Ingen services fejler lige nu.</p>
+                </div>
+
             </main>
         </div>
     </div>

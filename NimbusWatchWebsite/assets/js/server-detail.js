@@ -2,7 +2,7 @@
    Single-server detail view (server-detail.php?id={clientId}).
 
    Renders the server-list sidebar, host header, alert banner, gauges, disk
-   card, and the CPU/RAM/disk/network graphs. Graphs are drawn with Chart.js
+   card, service-error list, and the CPU/RAM/disk/network graphs. Graphs are drawn with Chart.js
    (loaded via CDN in server-detail.php), not hand-rolled SVG.
 
    This file only reads the selected id from the URL and renders around it.
@@ -166,19 +166,28 @@
     document.getElementById("alert-body").textContent = body;
   }
 
+  // Short byte label for inside a gauge ring (no decimals) so values like "35,5 KB" still fit on one line; the card text shows the exact value.
+  function formatBytesRing(n) {
+    var v = Math.abs(n) || 0;
+    var units = ["B", "KB", "MB", "GB", "TB"];
+    var i = 0;
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    return nf(v, 0) + " " + units[i];
+  }
+
   function renderGauges(s) {
     var ram = ramPct(s), disk = diskUsedPct(s);
     var gauges = [
       { label: "CPU-belastning", value: nf(s.cpuUsage, 0) + "%", big: nf(s.cpuUsage, 1) + " %", hint: "", ring: ring(s.cpuUsage, s.cpuUsage > GAUGE_CPU_CRIT ? CRIT : s.cpuUsage > GAUGE_CPU_WARN ? WARN : BLUE) },
       { label: "Hukommelse", value: nf(ram, 0) + "%", big: nf(s.ramUsage, 1) + " GB", hint: "af " + nf(s.ramTotal, 0) + " GB i alt", ring: ring(ram, ram > THRESHOLDS.ramCrit ? CRIT : ram > THRESHOLDS.ramWarn ? WARN : BLUE) },
       { label: "Diskplads", value: nf(disk, 0) + "%", big: nf(s.diskRemainingSpace, 0) + " GB fri", hint: "af " + nf(s.diskTotalSpace, 0) + " GB i alt", ring: ring(disk, disk >= THRESHOLDS.diskCrit ? CRIT : disk >= THRESHOLDS.diskWarn ? WARN : BLUE) },
-      { label: "Netværk (Sendt)", value: formatBytes(s.NetworkBytesSent), big: formatBytes(s.NetworkBytesSent), hint: "", ring: ring(networkPct(s.NetworkBytesSent, THRESHOLDS.networkSentCrit), s.NetworkBytesSent >= THRESHOLDS.networkSentCrit ? CRIT : s.NetworkBytesSent >= THRESHOLDS.networkSentWarn ? WARN : BLUE) },
-      { label: "Netværk (Modtaget)", value: formatBytes(s.NetworkBytesReceived), big: formatBytes(s.NetworkBytesReceived), hint: "", ring: ring(networkPct(s.NetworkBytesReceived, THRESHOLDS.networkReceivedCrit), s.NetworkBytesReceived >= THRESHOLDS.networkReceivedCrit ? CRIT : s.NetworkBytesReceived >= THRESHOLDS.networkReceivedWarn ? WARN : BLUE) }
+      { label: "Netværk (Sendt)", value: formatBytesRing(s.NetworkBytesSent), compact: true, big: formatBytes(s.NetworkBytesSent), hint: "", ring: ring(networkPct(s.NetworkBytesSent, THRESHOLDS.networkSentCrit), s.NetworkBytesSent >= THRESHOLDS.networkSentCrit ? CRIT : s.NetworkBytesSent >= THRESHOLDS.networkSentWarn ? WARN : BLUE) },
+      { label: "Netværk (Modtaget)", value: formatBytesRing(s.NetworkBytesReceived), compact: true, big: formatBytes(s.NetworkBytesReceived), hint: "", ring: ring(networkPct(s.NetworkBytesReceived, THRESHOLDS.networkReceivedCrit), s.NetworkBytesReceived >= THRESHOLDS.networkReceivedCrit ? CRIT : s.NetworkBytesReceived >= THRESHOLDS.networkReceivedWarn ? WARN : BLUE) }
     ];
     document.getElementById("gauge-list").innerHTML = gauges.map(function (g) {
       return '<div class="gauge-card">' +
         '<div class="gauge-ring" style="background:' + g.ring + '">' +
-        '<div class="gauge-ring__value">' + g.value + '</div>' +
+        '<div class="gauge-ring__value' + (g.compact ? ' gauge-ring__value--compact' : '') + '">' + g.value + '</div>' +
         '</div>' +
         '<div class="gauge-card__text">' +
         '<div class="gauge-card__label">' + esc(g.label) + '</div>' +
@@ -198,6 +207,66 @@
     fill.style.width = nf(disk, 0) + "%";
     fill.style.background = color;
     document.getElementById("disk-note").textContent = nf(disk, 0) + " % brugt";
+  }
+
+  // ServerService only reports services that aren't Running, so every row here is an error. Stopped is critical, the in-between states a warning.
+  var SERVICE_STATUS_LABELS = {
+    Stopped: "Stoppet",
+    Paused: "Sat på pause",
+    StartPending: "Starter",
+    StopPending: "Stopper",
+    ContinuePending: "Genoptager",
+    PausePending: "Sætter på pause"
+  };
+
+  var servicesLoading = false;
+
+  // How much older a service's latest error may be than the server's latest reading and still count as current (see loadServices).
+  var SERVICE_ERROR_MARGIN_MS = 30 * 1000;
+
+  // Fetches the server's service-status history and keeps only the newest row per service name.
+  function loadServices(s) {
+    if (servicesLoading || !s.serviceId || !State.companyId) {
+      if (!s.serviceId) renderServices([]);
+      return;
+    }
+    servicesLoading = true;
+    NWApi.get("/ServiceStatus/Get/" + State.companyId + "?serverId=" + encodeURIComponent(s.serviceId)).then(function (rows) {
+      var latest = {};
+      (rows || []).forEach(function (row) {
+        if (!latest[row.name] || row.id > latest[row.name].id) latest[row.name] = row;
+      });
+      // An error row is posted in the same cycle as each hardware reading, so a service that's still failing has an error about as new as
+      // the latest reading. One that has recovered stops getting rows, falls behind, and is dropped. If the server itself stops reporting,
+      // the latest reading doesn't move either, so its last errors stay visible rather than looking resolved.
+      var history = State.history[s.id] || [];
+      var lastReading = history.length ? history[history.length - 1].createdAt : null;
+      var list = Object.keys(latest).map(function (name) { return latest[name]; }).filter(function (row) {
+        if (!lastReading) return true;
+        return new Date(row.createdAt).getTime() >= lastReading.getTime() - SERVICE_ERROR_MARGIN_MS;
+      });
+      list.sort(function (a, b) { return b.id - a.id; });
+      // The user may have navigated on while the request was in flight.
+      if (F.getSelected() && F.getSelected().serviceId === s.serviceId) renderServices(list);
+    }).catch(function () {
+      renderServices([]);
+    }).then(function () {
+      servicesLoading = false;
+    });
+  }
+
+  function renderServices(list) {
+    document.getElementById("services-table-wrap").hidden = !list.length;
+    document.getElementById("services-empty").hidden = !!list.length;
+    document.getElementById("services-table-body").innerHTML = list.map(function (row) {
+      var isStopped = row.status === "Stopped";
+      return '<tr>' +
+        '<td>' + esc(row.name) + '</td>' +
+        '<td><span class="status-pill" style="color:' + (isStopped ? NW.colors.INK_CRIT : NW.colors.INK_WARN) + ';background:' + (isStopped ? NW.colors.TINT_CRIT : NW.colors.TINT_WARN) + '">' +
+        esc(SERVICE_STATUS_LABELS[row.status] || row.status) + '</span></td>' +
+        '<td class="is-right">' + esc(formatTimestamp(row.createdAt ? new Date(row.createdAt) : null)) + '</td>' +
+        '</tr>';
+    }).join("");
   }
 
   // Shows the charts or the table (never both), without touching their content, so toggling doesn't fight the poll re-render.
@@ -409,6 +478,7 @@
     renderAlert(sel);
     renderGauges(sel);
     renderDisk(sel);
+    loadServices(sel);
     renderGraph(sel);
   }
 
