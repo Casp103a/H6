@@ -2,7 +2,7 @@
    Single-server detail view (server-detail.php?id={clientId}).
 
    Renders the server-list sidebar, host header, alert banner, gauges, disk
-   card, and the CPU/RAM/disk/network graphs. Graphs are drawn with Chart.js
+   card, service-error list, and the CPU/RAM/disk/network graphs. Graphs are drawn with Chart.js
    (loaded via CDN in server-detail.php), not hand-rolled SVG.
 
    This file only reads the selected id from the URL and renders around it.
@@ -198,6 +198,55 @@
     fill.style.width = nf(disk, 0) + "%";
     fill.style.background = color;
     document.getElementById("disk-note").textContent = nf(disk, 0) + " % brugt";
+  }
+
+  // ServerService only reports services that aren't Running, so every row here is an error. Stopped is critical, the in-between states a warning.
+  var SERVICE_STATUS_LABELS = {
+    Stopped: "Stoppet",
+    Paused: "Sat på pause",
+    StartPending: "Starter",
+    StopPending: "Stopper",
+    ContinuePending: "Genoptager",
+    PausePending: "Sætter på pause"
+  };
+
+  var servicesLoading = false;
+
+  // Fetches the server's service-status history and keeps only the newest row per service name.
+  function loadServices(s) {
+    if (servicesLoading || !s.serviceId || !State.companyId) {
+      if (!s.serviceId) renderServices([]);
+      return;
+    }
+    servicesLoading = true;
+    NWApi.get("/ServiceStatus/Get/" + State.companyId + "?serverId=" + encodeURIComponent(s.serviceId)).then(function (rows) {
+      var latest = {};
+      (rows || []).forEach(function (row) {
+        if (!latest[row.name] || row.id > latest[row.name].id) latest[row.name] = row;
+      });
+      var list = Object.keys(latest).map(function (name) { return latest[name]; });
+      list.sort(function (a, b) { return b.id - a.id; });
+      // The user may have navigated on while the request was in flight.
+      if (F.getSelected() && F.getSelected().serviceId === s.serviceId) renderServices(list);
+    }).catch(function () {
+      renderServices([]);
+    }).then(function () {
+      servicesLoading = false;
+    });
+  }
+
+  function renderServices(list) {
+    document.getElementById("services-table-wrap").hidden = !list.length;
+    document.getElementById("services-empty").hidden = !!list.length;
+    document.getElementById("services-table-body").innerHTML = list.map(function (row) {
+      var isStopped = row.status === "Stopped";
+      return '<tr>' +
+        '<td>' + esc(row.name) + '</td>' +
+        '<td><span class="status-pill" style="color:' + (isStopped ? NW.colors.INK_CRIT : NW.colors.INK_WARN) + ';background:' + (isStopped ? NW.colors.TINT_CRIT : NW.colors.TINT_WARN) + '">' +
+        esc(SERVICE_STATUS_LABELS[row.status] || row.status) + '</span></td>' +
+        '<td class="is-right">' + esc(formatTimestamp(row.createdAt ? new Date(row.createdAt) : null)) + '</td>' +
+        '</tr>';
+    }).join("");
   }
 
   // Shows the charts or the table (never both), without touching their content, so toggling doesn't fight the poll re-render.
@@ -409,6 +458,7 @@
     renderAlert(sel);
     renderGauges(sel);
     renderDisk(sel);
+    loadServices(sel);
     renderGraph(sel);
   }
 
