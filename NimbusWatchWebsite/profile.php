@@ -6,8 +6,8 @@ $brandName = 'Nimbus Watch';
 $pageTitle = 'Profil';
 $isDashboard = false;
 // Read-only view of the logged-in user's own info, loaded client-side by
-// assets/js/profile.js via GET GetCurrentUserInfo. Editing happens on
-// profile-edit.php, not here.
+// assets/js/profile.js via GET GetCurrentUserInfo + GET UserProfile. Editing
+// happens on profile-edit.php, first-time creation on profile-create.php.
 ?>
 <!DOCTYPE html>
 <html lang="da">
@@ -48,8 +48,23 @@ $isDashboard = false;
                     </div>
                 </div>
 
-                <a href="<?= htmlspecialchars(nw_url('profile-edit.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--primary-soft">
-                    <i class="fa-solid fa-pen"></i>Rediger profil
+                <div id="profile-info" class="card user-info-card" hidden>
+                    <dl class="profile-info-list">
+                        <div>
+                            <dt>Fulde navn</dt>
+                            <dd id="profile-fullname"></dd>
+                        </div>
+                        <div>
+                            <dt>Telefonnummer</dt>
+                            <dd id="profile-phone"></dd>
+                        </div>
+                    </dl>
+                </div>
+                <p id="profile-missing" class="empty-note" hidden>Du har ikke udfyldt dine profiloplysninger endnu.</p>
+
+                <!-- href/label are switched to profile-create.php/"Opret profil" by profile.js when the user has no profile yet. -->
+                <a id="profile-action-btn" href="<?= htmlspecialchars(nw_url('profile-edit.php'), ENT_QUOTES, 'UTF-8') ?>" data-create-href="<?= htmlspecialchars(nw_url('profile-create.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--primary-soft" hidden>
+                    <i class="fa-solid fa-pen"></i><span class="btn-label">Rediger profil</span>
                 </a>
             </div>
         </div>

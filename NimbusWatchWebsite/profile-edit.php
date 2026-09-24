@@ -5,7 +5,7 @@ declare(strict_types=1);
 $brandName = 'Nimbus Watch';
 $pageTitle = 'Rediger profil';
 $isDashboard = false;
-// Loaded/saved client-side by assets/js/profile-edit.js. Open to every role — it only ever edits the caller's own email/password, never the role.
+// Loaded/saved client-side by assets/js/profile-edit.js. Open to every role — it only ever edits the caller's own email/password and profile info (name/phone), never the role.
 ?>
 <!DOCTYPE html>
 <html lang="da">
@@ -37,6 +37,14 @@ $isDashboard = false;
             <p id="profile-status" class="empty-note"></p>
 
             <form id="edit-profile-form" class="card user-form" hidden>
+                <label class="field">
+                    <span class="field__label">Fulde navn</span>
+                    <input type="text" name="fullName" id="profile-fullname" autocomplete="name" required>
+                </label>
+                <label class="field">
+                    <span class="field__label">Telefonnummer</span>
+                    <input type="tel" name="phoneNumber" id="profile-phone" autocomplete="tel" required>
+                </label>
                 <label class="field">
                     <span class="field__label">E-mail</span>
                     <input type="email" name="email" id="profile-email" autocomplete="email" required>

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using NimbusWatchApi.Managers;
 
 namespace NimbusWatchApi.Controllers
@@ -15,6 +16,7 @@ namespace NimbusWatchApi.Controllers
     }
 
     [HttpGet]
+    [Authorize]
     public async Task<IActionResult> GetRoles()
     {
       if (!ModelState.IsValid)
