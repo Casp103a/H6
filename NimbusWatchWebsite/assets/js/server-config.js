@@ -1,16 +1,14 @@
 /* ==========================================================================
    Service-configuration form (server-config.php?id={clientId}): lets an
    admin edit an existing server's report interval and watched services.
-   Reading the current config is a two-step async trip through
-   ConfigurationHub/ConfigurationController: POST /Configuration/request/
-   {clientId} asks the agent for it, and the hub later pushes
-   "ReceiveConfigurationResponse" with the answer once the agent replies.
-   Saving is a plain POST — see its handler for a caveat about that.
+   Reading the current config is a plain GET /Configuration/get/{clientId}.
+   Saving is a plain POST to /Configuration/update/{clientId} — see its
+   handler for a caveat about that one. Neither needs this page to hold its
+   own SignalR connection: the ConfigurationHub is only used server-side, to
+   relay the update to the agent's group.
    ========================================================================== */
 (function () {
   "use strict";
-
-  var HUB_URL = "https://nimbus-watch.com/hubs/configuration";
 
   var State = { companyId: null, clientId: null, watchedServices: [] };
   var DEFAULT_REPORT_INTERVAL_SECONDS = 60; // matches ServerServiceController's ReportFrequencyInMilliSec default
@@ -75,36 +73,19 @@
     });
   }
 
-  // Fills the form from the agent's live config. ConfigurationDto comes through with its raw C# (PascalCase)
-  // property names — SignalR's default JSON hub protocol doesn't apply the camelCase policy our REST responses use.
+  // Fills the form from the agent's current config (camelCase, like the rest of our REST responses).
   function applyConfig(configuration) {
     if (!configuration) return;
-    if (configuration.ReportFrequency) {
-      document.getElementById("report-interval").value = Math.round(configuration.ReportFrequency / 1000);
+    if (configuration.reportFrequency) {
+      document.getElementById("report-interval").value = Math.round(configuration.reportFrequency / 1000);
     }
-    State.watchedServices = (configuration.MonitoredServices || []).map(function (s) { return s.Name; });
+    State.watchedServices = (configuration.monitoredServices || []).map(function (s) { return s.name; });
     renderWatchedServices();
   }
 
-  // Connects to the ConfigurationHub and asks the agent (via the API) for its current config.
   // Never rejects — a failure just leaves the form at its blank defaults, editable from scratch.
-  function loadLiveConfig() {
-    var connection = new signalR.HubConnectionBuilder()
-      .withUrl(HUB_URL)
-      .withAutomaticReconnect()
-      .build();
-
-    // ReceiveConfigurationResponse is (requestId, configuration) — requestId only correlates the API's
-    // internal PendingConfigurationRequestStore entry server-side; this page has at most one request in
-    // flight at a time, so the configuration itself is all that matters here.
-    connection.on("ReceiveConfigurationResponse", function (requestId, configuration) {
-      console.log("ReceiveConfigurationResponse:", requestId, JSON.stringify(configuration)); // TEMP: remove once MonitoredServices' actual shape is confirmed
-      applyConfig(configuration);
-    });
-
-    return connection.start().then(function () {
-      return NWApi.post("/Configuration/request/" + encodeURIComponent(State.clientId));
-    }).catch(function (err) {
+  function loadCurrentConfig() {
+    return NWApi.get("/Configuration/get/" + encodeURIComponent(State.clientId)).then(applyConfig).catch(function (err) {
       setError("Kunne ikke hente nuværende konfiguration: " + err.message);
     });
   }
@@ -125,7 +106,7 @@
     });
 
     loadServerInfo();
-    loadLiveConfig();
+    loadCurrentConfig();
 
     form.addEventListener("submit", function (e) {
       e.preventDefault();
