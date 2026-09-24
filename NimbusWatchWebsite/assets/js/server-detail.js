@@ -166,19 +166,28 @@
     document.getElementById("alert-body").textContent = body;
   }
 
+  // Short byte label for inside a gauge ring (no decimals) so values like "35,5 KB" still fit on one line; the card text shows the exact value.
+  function formatBytesRing(n) {
+    var v = Math.abs(n) || 0;
+    var units = ["B", "KB", "MB", "GB", "TB"];
+    var i = 0;
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    return nf(v, 0) + " " + units[i];
+  }
+
   function renderGauges(s) {
     var ram = ramPct(s), disk = diskUsedPct(s);
     var gauges = [
       { label: "CPU-belastning", value: nf(s.cpuUsage, 0) + "%", big: nf(s.cpuUsage, 1) + " %", hint: "", ring: ring(s.cpuUsage, s.cpuUsage > GAUGE_CPU_CRIT ? CRIT : s.cpuUsage > GAUGE_CPU_WARN ? WARN : BLUE) },
       { label: "Hukommelse", value: nf(ram, 0) + "%", big: nf(s.ramUsage, 1) + " GB", hint: "af " + nf(s.ramTotal, 0) + " GB i alt", ring: ring(ram, ram > THRESHOLDS.ramCrit ? CRIT : ram > THRESHOLDS.ramWarn ? WARN : BLUE) },
       { label: "Diskplads", value: nf(disk, 0) + "%", big: nf(s.diskRemainingSpace, 0) + " GB fri", hint: "af " + nf(s.diskTotalSpace, 0) + " GB i alt", ring: ring(disk, disk >= THRESHOLDS.diskCrit ? CRIT : disk >= THRESHOLDS.diskWarn ? WARN : BLUE) },
-      { label: "Netværk (Sendt)", value: formatBytes(s.NetworkBytesSent), big: formatBytes(s.NetworkBytesSent), hint: "", ring: ring(networkPct(s.NetworkBytesSent, THRESHOLDS.networkSentCrit), s.NetworkBytesSent >= THRESHOLDS.networkSentCrit ? CRIT : s.NetworkBytesSent >= THRESHOLDS.networkSentWarn ? WARN : BLUE) },
-      { label: "Netværk (Modtaget)", value: formatBytes(s.NetworkBytesReceived), big: formatBytes(s.NetworkBytesReceived), hint: "", ring: ring(networkPct(s.NetworkBytesReceived, THRESHOLDS.networkReceivedCrit), s.NetworkBytesReceived >= THRESHOLDS.networkReceivedCrit ? CRIT : s.NetworkBytesReceived >= THRESHOLDS.networkReceivedWarn ? WARN : BLUE) }
+      { label: "Netværk (Sendt)", value: formatBytesRing(s.NetworkBytesSent), compact: true, big: formatBytes(s.NetworkBytesSent), hint: "", ring: ring(networkPct(s.NetworkBytesSent, THRESHOLDS.networkSentCrit), s.NetworkBytesSent >= THRESHOLDS.networkSentCrit ? CRIT : s.NetworkBytesSent >= THRESHOLDS.networkSentWarn ? WARN : BLUE) },
+      { label: "Netværk (Modtaget)", value: formatBytesRing(s.NetworkBytesReceived), compact: true, big: formatBytes(s.NetworkBytesReceived), hint: "", ring: ring(networkPct(s.NetworkBytesReceived, THRESHOLDS.networkReceivedCrit), s.NetworkBytesReceived >= THRESHOLDS.networkReceivedCrit ? CRIT : s.NetworkBytesReceived >= THRESHOLDS.networkReceivedWarn ? WARN : BLUE) }
     ];
     document.getElementById("gauge-list").innerHTML = gauges.map(function (g) {
       return '<div class="gauge-card">' +
         '<div class="gauge-ring" style="background:' + g.ring + '">' +
-        '<div class="gauge-ring__value">' + g.value + '</div>' +
+        '<div class="gauge-ring__value' + (g.compact ? ' gauge-ring__value--compact' : '') + '">' + g.value + '</div>' +
         '</div>' +
         '<div class="gauge-card__text">' +
         '<div class="gauge-card__label">' + esc(g.label) + '</div>' +
@@ -212,6 +221,9 @@
 
   var servicesLoading = false;
 
+  // How much older a service's latest error may be than the server's latest reading and still count as current (see loadServices).
+  var SERVICE_ERROR_MARGIN_MS = 30 * 1000;
+
   // Fetches the server's service-status history and keeps only the newest row per service name.
   function loadServices(s) {
     if (servicesLoading || !s.serviceId || !State.companyId) {
@@ -224,7 +236,15 @@
       (rows || []).forEach(function (row) {
         if (!latest[row.name] || row.id > latest[row.name].id) latest[row.name] = row;
       });
-      var list = Object.keys(latest).map(function (name) { return latest[name]; });
+      // An error row is posted in the same cycle as each hardware reading, so a service that's still failing has an error about as new as
+      // the latest reading. One that has recovered stops getting rows, falls behind, and is dropped. If the server itself stops reporting,
+      // the latest reading doesn't move either, so its last errors stay visible rather than looking resolved.
+      var history = State.history[s.id] || [];
+      var lastReading = history.length ? history[history.length - 1].createdAt : null;
+      var list = Object.keys(latest).map(function (name) { return latest[name]; }).filter(function (row) {
+        if (!lastReading) return true;
+        return new Date(row.createdAt).getTime() >= lastReading.getTime() - SERVICE_ERROR_MARGIN_MS;
+      });
       list.sort(function (a, b) { return b.id - a.id; });
       // The user may have navigated on while the request was in flight.
       if (F.getSelected() && F.getSelected().serviceId === s.serviceId) renderServices(list);

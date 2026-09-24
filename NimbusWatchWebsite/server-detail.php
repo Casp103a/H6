@@ -132,7 +132,7 @@ $pageTitle = 'Server';
                             <tbody id="services-table-body"></tbody>
                         </table>
                     </div>
-                    <p id="services-empty" class="empty-note">Ingen services har rapporteret fejl.</p>
+                    <p id="services-empty" class="empty-note">Ingen services fejler lige nu.</p>
                 </div>
 
             </main>
