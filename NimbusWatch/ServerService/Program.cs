@@ -51,6 +51,8 @@ namespace ServerService
         .GetManifestResourceStream("ServerService.appsettings.json")!;
       builder.Configuration.AddJsonStream(stream);
 
+      builder.Logging.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
+
       var host = builder.Build();
       host.Run();
     }
