@@ -22,6 +22,9 @@ namespace NimbusWatchApi.Controllers
     [HttpGet]
     public async Task<IActionResult> GetUserProfile()
     {
+      if (!ModelState.IsValid)
+        return BadRequest(ModelState);
+      
       var username = User.Identity?.Name;
 
       if (username == null)
