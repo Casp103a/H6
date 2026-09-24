@@ -78,8 +78,7 @@ namespace NimbusWatchApi
             var path = context.HttpContext.Request.Path;
 
             if (!string.IsNullOrWhiteSpace(accessToken) &&
-                (path.StartsWithSegments("/hubs/notifications") ||
-                 path.StartsWithSegments("/hubs/configuration")))
+                path.StartsWithSegments("/hubs/configuration"))
             {
               context.Token = accessToken;
             }
@@ -107,7 +106,7 @@ namespace NimbusWatchApi
       builder.Services.AddScoped<IServerTypesManager, ServerTypesManager>();
       builder.Services.AddScoped<ICompanyServiceStatusManager, CompanyServiceStatusManager>();
       builder.Services.AddSingleton<IClientSecretService, ClientSecretService>();
-      builder.Services.AddSingleton<PendingConfigurationRequestStore>();
+      builder.Services.AddSingleton<ServiceConnectionStore>();
 
       builder.Services.AddHostedService<DatabaseInitializerHostedService>();
 

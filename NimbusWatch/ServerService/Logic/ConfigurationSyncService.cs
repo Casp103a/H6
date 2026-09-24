@@ -1,8 +1,6 @@
 ﻿using ClassLibrary.Dtos.Configuration;
 using ClassLibrary.Services;
 using Microsoft.AspNetCore.SignalR.Client;
-using System.Text;
-using System.Text.Json;
 
 namespace ServerService.Logic
 {
@@ -10,19 +8,16 @@ namespace ServerService.Logic
   {
     private readonly IConfigReader _configReader;
     private readonly ITokenProvider _tokenProvider;
-    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<ConfigurationSyncService> _logger;
     private HubConnection? _hubConnection;
 
     public ConfigurationSyncService(
         IConfigReader configReader,
         ITokenProvider tokenProvider,
-        IHttpClientFactory httpClientFactory,
         ILogger<ConfigurationSyncService> logger)
     {
       _configReader = configReader;
       _tokenProvider = tokenProvider;
-      _httpClientFactory = httpClientFactory;
       _logger = logger;
     }
 
@@ -31,55 +26,31 @@ namespace ServerService.Logic
       var config = _configReader.Configuration;
 
       _hubConnection = new HubConnectionBuilder()
-          .WithUrl($"{config.ApiBaseUrl.TrimEnd('/')}/hubs/configuration?serviceId={config.ClientId}", options =>
+          .WithUrl($"{config.ApiBaseUrl.TrimEnd('/')}/hubs/configuration", options =>
           {
             options.AccessTokenProvider = async () =>
-                      await _tokenProvider.GetTokenAsync(stoppingToken);
+                await _tokenProvider.GetTokenAsync(stoppingToken);
           })
           .WithAutomaticReconnect()
           .Build();
 
-      _hubConnection.On<ConfigurationDto>(
-          "ReceiveConfigurationUpdate",
+      // Client result: the API calls InvokeAsync<ConfigurationDto>("UpdateConfiguration", dto)
+      _hubConnection.On<ConfigurationDto, ConfigurationDto>(
+          "UpdateConfiguration",
           async dto =>
           {
             _logger.LogInformation("Received configuration update.");
             await _configReader.UpdateAsync(dto, stoppingToken);
+            return GetCurrentConfiguration();
           });
 
-      _hubConnection.On<string>(
-          "ReceiveConfigurationRequest",
-          async requestId =>
+      // Client result: the API calls InvokeAsync<ConfigurationDto>("GetConfiguration")
+      _hubConnection.On<ConfigurationDto>(
+          "GetConfiguration",
+          () =>
           {
-            _logger.LogInformation("Received configuration request {RequestId}.", requestId);
-
-            var current = _configReader.Configuration;
-
-            var dto = new ConfigurationDto
-            {
-              ReportFrequency = current.ReportFrequencyInMilliSec,
-              MonitoredServices = current.Services
-            };
-
-            var client = _httpClientFactory.CreateClient("ApiClient");
-
-            var json = JsonSerializer.Serialize(
-                dto,
-                AppJsonSerializerContext.Default.ConfigurationDto);
-
-            using var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            using var response = await client.PostAsync(
-                $"api/configuration/response/{requestId}",
-                content,
-                stoppingToken);
-
-            if (!response.IsSuccessStatusCode)
-            {
-              _logger.LogWarning(
-                        "Failed to send configuration response. StatusCode: {StatusCode}",
-                        response.StatusCode);
-            }
+            _logger.LogInformation("Configuration requested by API.");
+            return GetCurrentConfiguration();
           });
 
       _hubConnection.Reconnecting += error =>
@@ -100,10 +71,32 @@ namespace ServerService.Logic
         return Task.CompletedTask;
       };
 
-      await _hubConnection.StartAsync(stoppingToken);
-      _logger.LogInformation("Connected to configuration hub.");
+      while (!stoppingToken.IsCancellationRequested)
+      {
+        try
+        {
+          await _hubConnection.StartAsync(stoppingToken);
+          _logger.LogInformation("Connected to configuration hub.");
+          break;
+        }
+        catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
+        {
+          _logger.LogWarning(ex, "Failed to connect to configuration hub. Retrying in 5s.");
+          await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+        }
+      }
 
       await Task.Delay(Timeout.Infinite, stoppingToken);
+    }
+
+    private ConfigurationDto GetCurrentConfiguration()
+    {
+      var current = _configReader.Configuration;
+      return new ConfigurationDto
+      {
+        ReportFrequency = current.ReportFrequencyInMilliSec,
+        MonitoredServices = current.Services
+      };
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)
@@ -112,6 +105,7 @@ namespace ServerService.Logic
       {
         await _hubConnection.StopAsync(cancellationToken);
         await _hubConnection.DisposeAsync();
+        _hubConnection = null;
       }
 
       await base.StopAsync(cancellationToken);

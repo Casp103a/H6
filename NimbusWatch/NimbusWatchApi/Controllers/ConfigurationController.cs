@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using NimbusWatchApi.Hubs;
 using NimbusWatchApi.Services;
-using System.Security.Claims;
 
 namespace NimbusWatchApi.Controllers
 {
@@ -13,65 +12,68 @@ namespace NimbusWatchApi.Controllers
   public class ConfigurationController : ControllerBase
   {
     private readonly IHubContext<ConfigurationHub> hubContext;
-    private readonly PendingConfigurationRequestStore requestStore;
+    private readonly ServiceConnectionStore connectionStore;
 
-    public ConfigurationController(IHubContext<ConfigurationHub> hubContext, PendingConfigurationRequestStore requestStore)
+    public ConfigurationController(IHubContext<ConfigurationHub> hubContext, ServiceConnectionStore connectionStore)
     {
       this.hubContext = hubContext;
-      this.requestStore = requestStore;
+      this.connectionStore = connectionStore;
     }
 
-    [HttpPost("update/{serviceId}")]
+    [HttpPost("update/{clientId}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> UpdateConfiguration([FromRoute] string serviceId, [FromBody] ConfigurationDto configuration)
+    public async Task<IActionResult> UpdateConfiguration([FromRoute] string clientId, [FromBody] ConfigurationDto configuration, CancellationToken cancellationToken)
     {
       if (!ModelState.IsValid)
         return BadRequest(ModelState);
 
-      await hubContext.Clients.Group(serviceId)
-          .SendAsync("ReceiveConfigurationUpdate", configuration);
+      if (!connectionStore.TryGet(clientId, out var connectionId) || connectionId is null)
+        return NotFound(new { message = "Service is not connected." });
 
-      return Ok(new { message = "Configuration update broadcasted successfully." });
-    }
+      using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+      cts.CancelAfter(TimeSpan.FromSeconds(10));
 
-    [HttpPost("request/{serviceId}")]
-    [Authorize]
-    public async Task<IActionResult> RequestConfiguration([FromRoute] string serviceId)
-    {
-      if (!ModelState.IsValid)
-        return BadRequest(ModelState);
-
-      var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-      if (string.IsNullOrWhiteSpace(userId))
-        return Unauthorized(new { message = "User id is missing." });
-
-      var requestId = Guid.NewGuid().ToString("N");
-      requestStore.Add(requestId, userId);
-
-      await hubContext.Clients.Group(serviceId)
-          .SendAsync("ReceiveConfigurationRequest", requestId);
-
-      return Ok(new
+      try
       {
-        requestId,
-        message = "Configuration request sent to service."
-      });
+        var applied = await hubContext.Clients.Client(connectionId)
+            .InvokeAsync<ConfigurationDto>("UpdateConfiguration", configuration, cts.Token);
+
+        return Ok(applied);
+      }
+      catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+      {
+        return StatusCode(StatusCodes.Status504GatewayTimeout, new { message = "Service did not respond in time." });
+      }
+      catch (Exception ex) when (ex is IOException or HubException)
+      {
+        return StatusCode(StatusCodes.Status502BadGateway, new { message = ex.Message });
+      }
     }
 
-    [HttpPost("response/{requestId}")]
-    [Authorize(Roles = "Service")]
-    public async Task<IActionResult> RespondToConfigurationRequest([FromRoute] string requestId, [FromBody] ConfigurationDto configuration)
+    [HttpGet("get/{clientId}")]
+    [Authorize]
+    public async Task<IActionResult> GetConfiguration([FromRoute] string clientId, CancellationToken cancellationToken)
     {
-      if (!ModelState.IsValid)
-        return BadRequest(ModelState);
+      if (!connectionStore.TryGet(clientId, out var connectionId) || connectionId is null)
+        return NotFound(new { message = "Service is not connected." });
 
-      if (!requestStore.TryRemove(requestId, out var userId) || string.IsNullOrWhiteSpace(userId))
-        return NotFound(new { message = "Request not found or already completed." });
+      using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+      cts.CancelAfter(TimeSpan.FromSeconds(10));
 
-      await hubContext.Clients.User(userId)
-          .SendAsync("ReceiveConfigurationResponse", requestId, configuration);
-
-      return Ok(new { message = "Configuration response sent to requesting user." });
+      try
+      {
+        var config = await hubContext.Clients.Client(connectionId)
+            .InvokeAsync<ConfigurationDto>("GetConfiguration", cts.Token);
+        return Ok(config);
+      }
+      catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+      {
+        return StatusCode(StatusCodes.Status504GatewayTimeout, new { message = "Service did not respond in time." });
+      }
+      catch (Exception ex) when (ex is IOException or HubException)
+      {
+        return StatusCode(StatusCodes.Status502BadGateway, new { message = ex.Message });
+      }
     }
   }
 }
