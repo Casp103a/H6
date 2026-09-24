@@ -1,4 +1,5 @@
 ﻿using ClassLibrary.Dtos;
+using ClassLibrary.Emuns;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NimbusWatchApi.Managers;
@@ -10,10 +11,62 @@ namespace NimbusWatchApi.Controllers
   public class UserController : ControllerBase
   {
     private readonly IUserManager userManager;
+    private readonly ICompanyManager companyManager;
 
-    public UserController(IUserManager userManager)
+    public UserController(IUserManager userManager, ICompanyManager companyManager)
     {
       this.userManager = userManager;
+      this.companyManager = companyManager;
+    }
+
+    [HttpPost("signuponcompanycreate")]
+    public async Task<IActionResult> SignUpOnCompanyCreate([FromBody] SignupWithCompanyDto userDto)
+    {
+      try
+      {
+        if (!ModelState.IsValid)
+          return BadRequest(ModelState);
+
+        if (string.IsNullOrEmpty(userDto.Email) || string.IsNullOrEmpty(userDto.Password) || string.IsNullOrEmpty(userDto.CompanyId))
+        {
+          return BadRequest("All fields are required.");
+        }
+
+        var doesUserExistingInCompany = await userManager.CheckIfCompanyHasAUser(userDto.CompanyId);
+
+        if (doesUserExistingInCompany)
+        {
+          return BadRequest("A user already exists in this company.");
+        }
+
+        var doesComapanyExist = await companyManager.GetCompany(userDto.CompanyId);
+
+        if (doesComapanyExist == null)
+        {
+          return BadRequest("The specified company does not exist.");
+        }
+
+        var registeruserdto = new RegisterUserDto
+        {
+          Email = userDto.Email,
+          Password = userDto.Password,
+          CompanyId = userDto.CompanyId,
+          RoleId = (int)RoleEnums.Admin
+        };
+
+        var createdUser = await userManager.CreateAsync(registeruserdto);
+
+        if (createdUser != null)
+        {
+          return Ok();
+        }
+
+        return StatusCode(500);
+      }
+      catch (Exception ex)
+      {
+        return StatusCode(500, ex);
+      }
     }
 
     [HttpPost("register")]

@@ -11,6 +11,7 @@ namespace NimbusWatchApi.Database.TableManagers
     Task<List<UserModel>> GetAllUsers(string companyId);
     Task<UserModel?> GetUser(int id);
     Task<UserModel?> GetUser(string email);
+    Task<bool> CheckIfCompanyHasAUser(string companyId);
   }
 
   public class UserTableManager : TableManager, IUserTableManager
@@ -151,6 +152,23 @@ namespace NimbusWatchApi.Database.TableManagers
       }
 
       return null;
+    }
+
+    public async Task<bool> CheckIfCompanyHasAUser(string companyId)
+    {
+      await using var connection = await OpenConnection();
+      await using var cmd = connection.CreateCommand();
+
+      cmd.CommandText = """
+        SELECT COUNT(*)
+        FROM users
+        WHERE CompanyId = @CompanyId;
+        """;
+
+      cmd.Parameters.AddWithValue("@CompanyId", companyId);
+
+      var result = await cmd.ExecuteScalarAsync();
+      return Convert.ToInt32(result) > 0;
     }
 
     private static UserModel MapUser(MySqlDataReader reader)
