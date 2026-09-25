@@ -112,7 +112,7 @@ namespace NimbusWatchApi.Controllers
         HttpOnly = true,
         Secure = true,
         SameSite = SameSiteMode.None,
-        Expires = DateTimeOffset.UtcNow.AddMinutes(15),
+        Expires = DateTimeOffset.UtcNow.AddDays(7),
         Path = "/"
       });
     }
