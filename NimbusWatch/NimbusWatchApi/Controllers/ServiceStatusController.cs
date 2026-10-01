@@ -40,6 +40,9 @@ namespace NimbusWatchApi.Controllers
     [Authorize]
     public async Task<IActionResult> GetAllServiceReportsAsync([FromRoute] string companyId)
     {
+      if (!ModelState.IsValid)
+        return BadRequest(ModelState);
+
       if (string.IsNullOrEmpty(companyId))
         return BadRequest("CompanyId cannot be null or empty.");
 
@@ -54,6 +57,9 @@ namespace NimbusWatchApi.Controllers
     [Authorize]
     public async Task<IActionResult> GetServiceStatusAsync([FromRoute] string companyId, [FromQuery] int serverId)
     {
+      if (!ModelState.IsValid)
+        return BadRequest(ModelState);
+
       if (string.IsNullOrEmpty(companyId))
         return BadRequest("CompanyId cannot be null or empty.");
 
