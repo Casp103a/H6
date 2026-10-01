@@ -1,15 +1,8 @@
 /* ==========================================================================
    Shared API client. Cookie-based session (credentials: "include" on every
-   request, access token lives in the cookie itself — never touched from JS)
-   — see each page's own script (login.js, signup.js, dashboard.js, users.js)
-   for the specific endpoints it calls.
-
-   A 401 from any call (other than the token endpoints and login itself)
-   triggers one silent POST /token/RefreshToken before failing — that's the
-   access-token cookie being renewed from the refresh token, same idea as
-   this app's Angular AuthService. Concurrent 401s share one refresh call
-   instead of firing one each. If refresh also fails, the original 401 is
-   what callers see.
+   request, access token never touched from JS). A 401 triggers one silent
+   POST /token/RefreshToken before failing (concurrent 401s share that one
+   refresh call); if refresh also fails, callers see the original 401.
    ========================================================================== */
 window.NWApi = (function () {
   "use strict";
@@ -31,6 +24,29 @@ window.NWApi = (function () {
       if (res.status === 204) return { res: res, data: null };
       return res.json().catch(function () { return null; }).then(function (data) {
         return { res: res, data: data };
+      });
+    });
+  }
+
+  // Mirrors rawRequest, but resolves the successful body as a Blob (for file-download endpoints) instead of JSON.
+  function rawRequestBlob(method, path, body) {
+    var opts = {
+      method: method,
+      credentials: "include",
+      headers: {}
+    };
+    if (body !== undefined) {
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(body);
+    }
+    return fetch(BASE_URL + path, opts).then(function (res) {
+      if (!res.ok) {
+        return res.json().catch(function () { return null; }).then(function (data) {
+          return { res: res, data: data, blob: null };
+        });
+      }
+      return res.blob().then(function (blob) {
+        return { res: res, data: null, blob: blob };
       });
     });
   }
@@ -88,10 +104,25 @@ window.NWApi = (function () {
     });
   }
 
+  function requestBlob(method, path, body, isRetry) {
+    return rawRequestBlob(method, path, body).then(function (r) {
+      if (r.res.status === 204) return null;
+      if (r.res.ok) return r.blob;
+      if (r.res.status === 401 && !isRetry && !skipsRefresh(path)) {
+        return sharedRefresh().then(function (ok) {
+          if (!ok) throw toError(r.res, r.data);
+          return requestBlob(method, path, body, true);
+        });
+      }
+      throw toError(r.res, r.data);
+    });
+  }
+
   return {
     get: function (path) { return request("GET", path); },
     post: function (path, body) { return request("POST", path, body); },
     put: function (path, body) { return request("PUT", path, body); },
+    postBlob: function (path, body) { return requestBlob("POST", path, body); },
     validateToken: validateToken,
     refreshToken: refreshToken,
     ensureSession: ensureSession

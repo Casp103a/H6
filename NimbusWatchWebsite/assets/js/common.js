@@ -6,12 +6,7 @@
 window.NW = (function () {
   "use strict";
 
-  // No color VALUES live here — every one of these is a CSS custom property
-  // defined in tokens.css (--nf-success/-warning/-error/-primary/
-  // -neutral-status, and their -tint/-ink badge pairs). This object only
-  // maps a status name to the token it uses, so JS decides *which* state
-  // applies to a server/user but never *what color that state looks like* —
-  // change the look by editing tokens.css, not here.
+  // No color VALUES live here, only CSS custom properties from theme.css — change the look by editing theme.css, not here.
   var colors = {
     OK: "var(--nf-success)",
     WARN: "var(--nf-warning)",
@@ -41,10 +36,7 @@ window.NW = (function () {
     return String(name).trim().split(/\s+/).map(function (p) { return p.charAt(0); }).join("").slice(0, 2).toUpperCase();
   }
 
-  // Company-scoped pages live at /{companyName}/page.php (see /.htaccess and
-  // partials/header.php's nw_url()) — mirror that here so JS-driven
-  // navigation (e.g. a users-list row linking to its detail page) lands on
-  // the same URL shape as the server-rendered links.
+  // Company-scoped pages live at /{companyName}/page.php — mirrors nw_url() in partials/header.php for JS-driven navigation.
   function url(page) {
     var segments = window.location.pathname.split("/").filter(function (s) { return s !== ""; });
     var companySlug = segments.length >= 2 ? segments[0] : null;
@@ -83,20 +75,37 @@ window.NW = (function () {
     apply(document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
   }
 
-  // GetAllUsers is [Authorize(Roles = "Admin")] on the API — non-admins get
-  // a 403 from it, so the nav link stays hidden (its default state in the
-  // markup) unless the current user's role resolves to "Admin".
-  function initUsersNavVisibility(user) {
-    var link = document.getElementById("users-nav-link");
-    if (!link || !user) return;
-    NWApi.get("/role").then(function (roles) {
+  // Resolves whether `user` holds the Admin role, so Admin-only UI can hide itself instead of erroring after a 403.
+  function isAdmin(user) {
+    if (!user) return Promise.resolve(false);
+    return NWApi.get("/role").then(function (roles) {
       var role = (roles || []).find(function (r) { return r.id === user.roleId; });
-      link.hidden = !role || role.name !== "Admin";
-    }).catch(function () { /* leave it hidden if this fails */ });
+      return !!role && role.name === "Admin";
+    }).catch(function () { return false; });
   }
 
-  // Populates the header's name label and avatar initials from the
-  // logged-in user's email (GET /api/user/GetCurrentUserInfo, cookie-scoped).
+  // GetAllUsers is Admin-only on the API, so this nav link stays hidden unless the current user is an Admin.
+  function initUsersNavVisibility(user) {
+    var link = document.getElementById("users-nav-link");
+    if (!link) return;
+    isAdmin(user).then(function (admin) { link.hidden = !admin; });
+  }
+
+  // "Tilføj server" is Admin-only — same hidden-until-confirmed pattern as initUsersNavVisibility.
+  function initCreateServerVisibility(user) {
+    var link = document.getElementById("create-server-link");
+    if (!link) return;
+    isAdmin(user).then(function (admin) { link.hidden = !admin; });
+  }
+
+  // "Service-konfiguration" (server-detail.php's host header) is Admin-only, same as initCreateServerVisibility.
+  function initServiceConfigVisibility(user) {
+    var link = document.getElementById("service-config-link");
+    if (!link) return;
+    isAdmin(user).then(function (admin) { link.hidden = !admin; });
+  }
+
+  // Populates the header's name label and avatar initials from the logged-in user's email.
   function initUserIdentity() {
     var nameLabel = document.getElementById("user-name-label");
     var avatarBtn = document.getElementById("avatar-trigger");
@@ -106,6 +115,8 @@ window.NW = (function () {
       if (nameLabel) nameLabel.textContent = email.split("@")[0];
       if (avatarBtn) avatarBtn.textContent = email.slice(0, 2).toUpperCase();
       initUsersNavVisibility(user);
+      initCreateServerVisibility(user);
+      initServiceConfigVisibility(user);
     }).catch(function () { /* leave header blank if this fails */ });
   }
 
@@ -135,8 +146,7 @@ window.NW = (function () {
     });
   }
 
-  // Every page that loads common.js is auth-required (login.php/signup.php
-  // don't include it) — bounce to login if there's no valid session.
+  // Every page loading common.js is auth-required — bounce to login if there's no valid session.
   document.addEventListener("DOMContentLoaded", function () {
     NWApi.ensureSession().then(function (ok) {
       if (!ok) {
@@ -150,5 +160,5 @@ window.NW = (function () {
     });
   });
 
-  return { colors: colors, esc: esc, nf: nf, initials: initials, url: url };
+  return { colors: colors, esc: esc, nf: nf, initials: initials, url: url, isAdmin: isAdmin };
 })();

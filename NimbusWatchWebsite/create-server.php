@@ -20,7 +20,7 @@ $isDashboard = false;
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800|jost:300,500" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="/assets/css/tokens.css">
+    <link rel="stylesheet" href="/assets/css/theme.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/create-server.css">
 </head>
@@ -43,6 +43,20 @@ $isDashboard = false;
                     <span class="field__label">IP-adresse</span>
                     <input type="text" name="server-ip" id="server-ip" placeholder="fx 10.0.0.12" required>
                 </label>
+                <label class="field">
+                    <span class="field__label">Servertype</span>
+                    <select name="server-type" id="server-type" required></select>
+                </label>
+                <div class="field">
+                    <span class="field__label">Services der skal overvåges</span>
+                    <div class="watch-list" id="watched-services">
+                        <div class="watch-list__input-row">
+                            <input type="text" id="watched-service-input" placeholder="fx Website, Database">
+                            <button type="button" id="watched-service-add" class="btn">Tilføj</button>
+                        </div>
+                        <ul class="watch-list__items" id="watched-service-items"></ul>
+                    </div>
+                </div>
                 <p id="create-server-error" class="form-error" hidden></p>
                 <div class="create-server__actions">
                     <button type="button" id="cancel-create-server" class="btn">Annullér</button>

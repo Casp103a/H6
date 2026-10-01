@@ -7,10 +7,7 @@
  */
 $isDashboard = $isDashboard ?? true;
 
-// Dashboard pages live at /{companyName}/page.php (see /.htaccess — there's
-// no per-company folder on disk, it's a rewritten path). The company name
-// is just the URL's first segment, still percent-encoded exactly as it
-// appeared in the request, so it can be reused as-is in these links.
+// Dashboard pages live at /{companyName}/page.php (a rewritten path, see /.htaccess) — the company name is just the URL's first segment.
 $__reqPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '';
 $__segments = array_values(array_filter(explode('/', $__reqPath), fn($s) => $s !== ''));
 $companySlug = count($__segments) >= 2 ? $__segments[0] : null;
@@ -32,7 +29,11 @@ function nw_url(string $page): string
     <?php if ($isDashboard): ?>
         <div class="search-box">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <span>Søg efter server, IP eller tag</span>
+            <input type="search" id="server-search" class="search-box__input" placeholder="Søg efter server eller IP">
+        </div>
+        <div class="type-filter">
+            <i class="fa-solid fa-filter"></i>
+            <select id="server-type-filter" class="type-filter__select"></select>
         </div>
     <?php endif; ?>
     <div class="header-spacer"></div>

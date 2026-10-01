@@ -11,6 +11,7 @@ namespace NimbusWatchApi.Database.TableManagers
     Task<List<UserModel>> GetAllUsers(string companyId);
     Task<UserModel?> GetUser(int id);
     Task<UserModel?> GetUser(string email);
+    Task<bool> CheckIfCompanyHasAUser(string companyId);
   }
 
   public class UserTableManager : TableManager, IUserTableManager
@@ -25,8 +26,8 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = """
-        INSERT INTO users (Email, Password, RoleId, IsActive, CreatedAt, CompanyId)
-        VALUES (@Email, @Password, @RoleId, @IsActive, @CreatedAt, @CompanyId);
+        INSERT INTO users (Email, Password, RoleId, IsActive, CreatedAt, CompanyId, PublicId)
+        VALUES (@Email, @Password, @RoleId, @IsActive, @CreatedAt, @CompanyId, @PublicId);
         """;
 
       cmd.Parameters.AddWithValue("@Email", user.Email);
@@ -35,6 +36,7 @@ namespace NimbusWatchApi.Database.TableManagers
       cmd.Parameters.AddWithValue("@IsActive", user.IsActive);
       cmd.Parameters.AddWithValue("@CreatedAt", user.CreatedAt);
       cmd.Parameters.AddWithValue("@CompanyId", user.CompanyId);
+      cmd.Parameters.AddWithValue("@PublicId", user.PublicId);
 
       return await cmd.ExecuteNonQueryAsync() > 0;
     }
@@ -89,7 +91,7 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = """
-        SELECT Id, Email, Password, RoleId, IsActive, CreatedAt, CompanyId
+        SELECT Id, Email, Password, RoleId, IsActive, CreatedAt, CompanyId, PublicId
         FROM users
         WHERE CompanyId = @CompanyId;
         """;
@@ -112,7 +114,7 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = """
-        SELECT Id, Email, Password, RoleId, IsActive, CreatedAt, CompanyId
+        SELECT Id, Email, Password, RoleId, IsActive, CreatedAt, CompanyId, PublicId
         FROM users
         WHERE Id = @Id;
         """;
@@ -135,7 +137,7 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = """
-        SELECT Id, Email, Password, RoleId, IsActive, CreatedAt, CompanyId
+        SELECT Id, Email, Password, RoleId, IsActive, CreatedAt, CompanyId, PublicId
         FROM users
         WHERE Email = @Email;
         """;
@@ -152,6 +154,23 @@ namespace NimbusWatchApi.Database.TableManagers
       return null;
     }
 
+    public async Task<bool> CheckIfCompanyHasAUser(string companyId)
+    {
+      await using var connection = await OpenConnection();
+      await using var cmd = connection.CreateCommand();
+
+      cmd.CommandText = """
+        SELECT COUNT(*)
+        FROM users
+        WHERE CompanyId = @CompanyId;
+        """;
+
+      cmd.Parameters.AddWithValue("@CompanyId", companyId);
+
+      var result = await cmd.ExecuteScalarAsync();
+      return Convert.ToInt32(result) > 0;
+    }
+
     private static UserModel MapUser(MySqlDataReader reader)
     {
       return new UserModel
@@ -163,6 +182,7 @@ namespace NimbusWatchApi.Database.TableManagers
         IsActive = reader.GetBoolean("IsActive"),
         CreatedAt = reader.GetDateTime("CreatedAt"),
         CompanyId = reader.GetGuid("CompanyId").ToString(),
+        PublicId = reader.GetGuid("PublicId")
       };
     }
   }

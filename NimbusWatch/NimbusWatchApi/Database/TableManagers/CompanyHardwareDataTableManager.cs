@@ -24,8 +24,8 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = $"""
-        INSERT INTO `{table}` (CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal)
-        VALUES (@CompanyId, @ServiceId, @CpuUsages, @DiskTotalSpace, @DiskRemainingSpace, @RamUsage, @RamTotal);
+        INSERT INTO `{table}` (CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal, NetworkBytesSent, NetworkBytesReceived, CreatedAt)
+        VALUES (@CompanyId, @ServiceId, @CpuUsages, @DiskTotalSpace, @DiskRemainingSpace, @RamUsage, @RamTotal, @NetworkBytesSent, @NetworkBytesReceived, @CreatedAt);
         """;
 
       cmd.Parameters.AddWithValue("@CompanyId", data.CompanyId);
@@ -35,6 +35,9 @@ namespace NimbusWatchApi.Database.TableManagers
       cmd.Parameters.AddWithValue("@DiskRemainingSpace", data.DiskRemainingSpace);
       cmd.Parameters.AddWithValue("@RamUsage", data.RamUsage);
       cmd.Parameters.AddWithValue("@RamTotal", data.RamTotal);
+      cmd.Parameters.AddWithValue("@NetworkBytesSent", data.NetworkBytesSent);
+      cmd.Parameters.AddWithValue("@NetworkBytesReceived", data.NetworkBytesReceived);
+      cmd.Parameters.AddWithValue("@CreatedAt", data.CreatedAt);
 
       return await cmd.ExecuteNonQueryAsync() > 0;
     }
@@ -48,7 +51,7 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = $"""
-        SELECT Id, CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal
+        SELECT Id, CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal, NetworkBytesSent, NetworkBytesReceived, CreatedAt
         FROM `{table}`;
         """;
 
@@ -69,7 +72,7 @@ namespace NimbusWatchApi.Database.TableManagers
       await using var cmd = connection.CreateCommand();
 
       cmd.CommandText = $"""
-        SELECT Id, CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal
+        SELECT Id, CompanyId, ServiceId, CpuUsages, DiskTotalSpace, DiskRemainingSpace, RamUsage, RamTotal, NetworkBytesSent, NetworkBytesReceived, CreatedAt
         FROM `{table}`
         WHERE ServiceId = @ServiceId;
         """;
@@ -96,6 +99,9 @@ namespace NimbusWatchApi.Database.TableManagers
         DiskRemainingSpace = reader.GetDouble("DiskRemainingSpace"),
         RamUsage = reader.GetDouble("RamUsage"),
         RamTotal = reader.GetDouble("RamTotal"),
+        NetworkBytesSent = reader.GetInt64("NetworkBytesSent"),
+        NetworkBytesReceived = reader.GetInt64("NetworkBytesReceived"),
+        CreatedAt = reader.GetDateTime("CreatedAt"),
       };
     }
   }

@@ -5,10 +5,7 @@ declare(strict_types=1);
 $brandName = 'Nimbus Watch';
 $pageTitle = 'Rediger profil';
 $isDashboard = false;
-// The logged-in user's own info is loaded/saved client-side by
-// assets/js/profile-edit.js via GET GetCurrentUserInfo / PUT UpdateProfile.
-// Open to every role — unlike users.php/user-detail.php, this only ever
-// edits the caller's own email/password, never the role.
+// Loaded/saved client-side by assets/js/profile-edit.js. Open to every role — it only ever edits the caller's own email/password and profile info (name/phone), never the role.
 ?>
 <!DOCTYPE html>
 <html lang="da">
@@ -23,7 +20,7 @@ $isDashboard = false;
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800|jost:300,500" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="/assets/css/tokens.css">
+    <link rel="stylesheet" href="/assets/css/theme.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/users.css">
 </head>
@@ -40,6 +37,14 @@ $isDashboard = false;
             <p id="profile-status" class="empty-note"></p>
 
             <form id="edit-profile-form" class="card user-form" hidden>
+                <label class="field">
+                    <span class="field__label">Fulde navn</span>
+                    <input type="text" name="fullName" id="profile-fullname" autocomplete="name" required>
+                </label>
+                <label class="field">
+                    <span class="field__label">Telefonnummer</span>
+                    <input type="tel" name="phoneNumber" id="profile-phone" autocomplete="tel" required>
+                </label>
                 <label class="field">
                     <span class="field__label">E-mail</span>
                     <input type="email" name="email" id="profile-email" autocomplete="email" required>

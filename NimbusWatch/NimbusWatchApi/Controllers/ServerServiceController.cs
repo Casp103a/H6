@@ -1,6 +1,7 @@
 ﻿using ClassLibrary.Configuration;
 using ClassLibrary.Dtos;
 using ClassLibrary.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NimbusWatchApi.Managers;
 using System.Text.Json;
@@ -21,6 +22,7 @@ namespace NimbusWatchApi.Controllers
     }
 
     [HttpPost("Add")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> AddServiceClient([FromBody] CreateServerServiceDto client)
     {
       if (!ModelState.IsValid)
@@ -37,6 +39,11 @@ namespace NimbusWatchApi.Controllers
           CompanyId = Guid.Parse(client.CompanyId),
           ServerName = client.Name,
           ReportFrequencyInMilliSec = 60000, // Default to 60 secondss
+
+          Services = client.ServicesToMonitor.Select(s => new ServerServicesInfo
+          {
+            Name = s.Name,
+          }).ToList(),
         };
 
         var json = JsonSerializer.Serialize(config, new JsonSerializerOptions
@@ -55,6 +62,7 @@ namespace NimbusWatchApi.Controllers
     }
 
     [HttpGet("GetServerInfo/{companyId}")]
+    [Authorize]
     public async Task<IActionResult> GetServerInfo([FromRoute] string companyId, [FromQuery] string clientId)
     {
       if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(companyId))
@@ -63,11 +71,12 @@ namespace NimbusWatchApi.Controllers
       var result = await serviceClientManager.GetByClientIdAsync(companyId, clientId);
       if (result != null)
       {
-        var serverInfo = new ServiceInfoDto
+        var serverInfo = new ServerInfoDto
         {
           ServerName = result.ServerName,
           IpAddress = result.IpAddress,
-          ClientId = result.ClientId.ToString()
+          ClientId = result.ClientId.ToString(),
+          ServerTypeId = result.ServerTypeId
         };
 
         return Ok(serverInfo);
@@ -77,6 +86,7 @@ namespace NimbusWatchApi.Controllers
     }
 
     [HttpGet("GetAll/{companyId}")]
+    [Authorize]
     public async Task<IActionResult> GetAll([FromRoute] string companyId)
     {
       if (string.IsNullOrEmpty(companyId))
@@ -85,17 +95,39 @@ namespace NimbusWatchApi.Controllers
       var result = await serviceClientManager.GetAllByCompanyIdAsync(companyId);
       if (result != null && result.Any())
       {
-        var serverInfos = result.Select(r => new ServiceInfoDto
+        var serverInfos = result.Select(r => new ServerInfoDto
         {
           ServerName = r.ServerName,
           IpAddress = r.IpAddress,
-          ClientId = r.ClientId.ToString()
+          ClientId = r.ClientId.ToString(),
+          ServerTypeId = r.ServerTypeId
         });
 
         return Ok(serverInfos);
       }
       else
         return NotFound("No service clients found for the specified company.");
+    }
+
+    [HttpGet("GetServiceInfo/{companyId}")]
+    [Authorize(Roles = "Service")]
+    public async Task<IActionResult> GetServiceInfo([FromRoute] string companyId, [FromQuery] string clientId)
+    {
+      if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(companyId))
+        return BadRequest("ClientId or CompanyId cannot be null or empty.");
+
+      var result = await serviceClientManager.GetByClientIdAsync(companyId, clientId);
+      if (result != null)
+      {
+        var serviceInfo = new ServiceInfoDto
+        {
+          Id = result.Id,
+        };
+
+        return Ok(serviceInfo);
+      }
+      else
+        return NotFound("Service client not found.");
     }
   }
 }

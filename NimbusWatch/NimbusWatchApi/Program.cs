@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using NimbusWatchApi.Database;
+using NimbusWatchApi.Hubs;
 using NimbusWatchApi.Managers;
 using NimbusWatchApi.Options;
 using NimbusWatchApi.Services;
@@ -77,7 +78,7 @@ namespace NimbusWatchApi
             var path = context.HttpContext.Request.Path;
 
             if (!string.IsNullOrWhiteSpace(accessToken) &&
-                path.StartsWithSegments("/hubs/notifications"))
+                path.StartsWithSegments("/hubs/configuration"))
             {
               context.Token = accessToken;
             }
@@ -102,7 +103,11 @@ namespace NimbusWatchApi
       builder.Services.AddScoped<IRoleManager, RoleManager>();
       builder.Services.AddScoped<IServiceClientManager, ServiceClientManager>();
       builder.Services.AddScoped<ICompanyHardwareDataManager, CompanyHardwareDataManager>();
+      builder.Services.AddScoped<IServerTypesManager, ServerTypesManager>();
+      builder.Services.AddScoped<ICompanyServiceStatusManager, CompanyServiceStatusManager>();
+      builder.Services.AddScoped<IUserProfileManager, UserProfileManager>();
       builder.Services.AddSingleton<IClientSecretService, ClientSecretService>();
+      builder.Services.AddSingleton<ServiceConnectionStore>();
 
       builder.Services.AddHostedService<DatabaseInitializerHostedService>();
 
@@ -110,6 +115,7 @@ namespace NimbusWatchApi
         ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");
 
       builder.Services.AddScoped<IDatabaseManager>(_ => new DatabaseManager(connectionString));
+      builder.Services.AddSignalR();
 
       var app = builder.Build();
 
@@ -126,6 +132,7 @@ namespace NimbusWatchApi
       app.UseAuthorization();
 
       app.MapControllers();
+      app.MapHub<ConfigurationHub>("/hubs/configuration");
 
       app.Run();
     }

@@ -12,6 +12,9 @@ namespace NimbusWatchApi.Database
     IRoleTableManager Roles { get; }
     IServiceClientTableManager ServiceClients { get; }
     ICompanyHardwareDataTableManager CompanyHardwareData { get; }
+    ICompanyServiceStatusTableManager CompanyServiceStatus { get; }
+    IServerTypesTableManager ServerTypes { get; }
+    IUserProfileTableManager UserProfiles { get; }
 
     Task EnsureCompanyTables(string companyId);
     Task SetupDatabase(CancellationToken cancellationToken = default);
@@ -30,6 +33,9 @@ namespace NimbusWatchApi.Database
       Roles = new RoleTableManager(_connectionString);
       ServiceClients = new ServiceClientTableManager(_connectionString);
       CompanyHardwareData = new CompanyHardwareDataTableManager(_connectionString);
+      CompanyServiceStatus = new CompanyServiceStatusTableManager(_connectionString);
+      ServerTypes = new ServerTypesTableManager(_connectionString);
+      UserProfiles = new UserProfileTableManager(_connectionString);
     }
 
     public IRefreshTokenTableManager RefreshTokens { get; }
@@ -38,6 +44,9 @@ namespace NimbusWatchApi.Database
     public IRoleTableManager Roles { get; }
     public IServiceClientTableManager ServiceClients { get; }
     public ICompanyHardwareDataTableManager CompanyHardwareData { get; }
+    public ICompanyServiceStatusTableManager CompanyServiceStatus { get; }
+    public IServerTypesTableManager ServerTypes { get; }
+    public IUserProfileTableManager UserProfiles { get; }
 
     public async Task SetupDatabase(CancellationToken cancellationToken = default)
     {
@@ -53,7 +62,14 @@ namespace NimbusWatchApi.Database
       if (!await TableExists("roles"))
         await CreateRoleTable();
 
+      if (!await TableExists("servertypes"))
+        await CreateServerTypeTable();
+
+      if (!await TableExists("userprofiles"))
+        await CreateUserProfileTable();
+
       await SetupRoles();
+      await SetupServerTypes();
 
       // Per-company tables for every company that already exists.
       foreach (var company in await Companys.GetAllCompanies())
@@ -122,7 +138,8 @@ namespace NimbusWatchApi.Database
         RoleId INT NOT NULL,
         IsActive BOOLEAN NOT NULL,
         CreatedAt DATETIME NOT NULL,
-        CompanyId VARCHAR(36) NOT NULL
+        CompanyId VARCHAR(36) NOT NULL,
+        PublicId VARCHAR(36) NOT NULL UNIQUE
         );
         """;
       await cmd.ExecuteNonQueryAsync();
@@ -167,16 +184,45 @@ namespace NimbusWatchApi.Database
       }
     }
 
+    private async Task CreateServerTypeTable()
+    {
+      await using var connection = await OpenConnection();
+      await using var cmd = connection.CreateCommand();
+      cmd.CommandText = """
+        CREATE TABLE IF NOT EXISTS servertypes (
+        Id INT AUTO_INCREMENT PRIMARY KEY,
+        ServerTypeName VARCHAR(255) NOT NULL UNIQUE
+        );
+        """;
+      await cmd.ExecuteNonQueryAsync();
+    }
+
+    private async Task SetupServerTypes()
+    {
+      var serverTypes = Enum.GetValues(typeof(ServerTypesEnums)).Cast<ServerTypesEnums>().Select(st => st.ToString()).ToList();
+      foreach (var serverType in serverTypes)
+      {
+        if (!await ServerTypes.DoesServerTypeExist(serverType))
+        {
+          await ServerTypes.CreateServerType(serverType);
+        }
+      }
+    }
+
     public async Task EnsureCompanyTables(string companyId)
     {
       var serviceClientsTable = CompanyTableNames.ServiceClients(companyId);
       var hardwareDataTable = CompanyTableNames.HardwareData(companyId);
+      var serviceStatusesTable = CompanyTableNames.ServiceStatuses(companyId);
 
       if (!await TableExists(serviceClientsTable))
         await CreateServiceClientTable(serviceClientsTable);
 
       if (!await TableExists(hardwareDataTable))
         await CreateCompanyHardwareDataTable(hardwareDataTable, serviceClientsTable);
+
+      if (!await TableExists(serviceStatusesTable))
+        await CreateCompanyServiceStatuses(serviceStatusesTable, serviceClientsTable);
     }
 
     private async Task CreateServiceClientTable(string tableName)
@@ -188,10 +234,14 @@ namespace NimbusWatchApi.Database
         ClientSecretHash VARCHAR(255) NOT NULL,
         ServerName VARCHAR(255) NOT NULL,
         IpAddress VARCHAR(45) NOT NULL,
+        ServerTypeId INT NOT NULL,
         RoleId INT NOT NULL,
         IsActive BOOLEAN NOT NULL,
         CreatedAt DATETIME NOT NULL,
         UpdatedAt DATETIME NOT NULL,
+        CONSTRAINT `FK_{tableName}_ServerTypes_ServerTypeId`
+          FOREIGN KEY (ServerTypeId) REFERENCES servertypes(Id)
+          ON DELETE CASCADE,
         CONSTRAINT `FK_{tableName}_Roles_RoleId`
           FOREIGN KEY (RoleId) REFERENCES roles(Id)
           ON DELETE CASCADE
@@ -211,6 +261,9 @@ namespace NimbusWatchApi.Database
         DiskRemainingSpace DOUBLE NOT NULL,
         RamUsage DOUBLE NOT NULL,
         RamTotal DOUBLE NOT NULL,
+        NetworkBytesSent BIGINT NOT NULL,
+        NetworkBytesReceived BIGINT NOT NULL,
+        CreatedAt DATETIME NOT NULL,
         CONSTRAINT `FK_{tableName}_Companys_CompanyId`
           FOREIGN KEY (CompanyId) REFERENCES companys(Id)
           ON DELETE CASCADE,
@@ -220,5 +273,39 @@ namespace NimbusWatchApi.Database
         );
         """);
     }
-  }
+
+    private async Task CreateCompanyServiceStatuses(string tableName, string serviceClientsTable)
+    {
+      await ExecuteNonQuery($"""
+        CREATE TABLE `{tableName}` (
+        Id INT AUTO_INCREMENT PRIMARY KEY,
+        ServerId INT NOT NULL,
+        Name VARCHAR(255) NOT NULL,
+        Status VARCHAR(255) NOT NULL,
+        CreatedAt DATETIME NOT NULL,
+        CONSTRAINT `FK_{tableName}_ServiceClients_ServerId`
+          FOREIGN KEY (ServerId) REFERENCES `{serviceClientsTable}`(Id)
+          ON DELETE CASCADE
+        );
+        """);
+    }
+
+    private async Task CreateUserProfileTable()
+    {
+      await using var connection = await OpenConnection();
+      await using var cmd = connection.CreateCommand();
+      cmd.CommandText = """
+        CREATE TABLE IF NOT EXISTS userprofiles (
+        Id INT AUTO_INCREMENT PRIMARY KEY,
+        UserId INT NOT NULL UNIQUE,
+        FullName VARCHAR(255) NOT NULL,
+        PhoneNumber VARCHAR(50) NOT NULL,
+        CONSTRAINT FK_UserProfiles_Users_UserId
+          FOREIGN KEY (UserId) REFERENCES users(Id)
+          ON DELETE CASCADE
+        );
+        """;
+       await cmd.ExecuteNonQueryAsync();
+      }
+    }
 }

@@ -11,5 +11,7 @@
     public string ClientId { get; set; } = string.Empty;
     public string ClientSecret { get; set; } = string.Empty;
     public int TokenRefreshBufferSeconds { get; set; } = 30;
+
+    public List<ServerServicesInfo> Services { get; set; } = [];
   }
 }

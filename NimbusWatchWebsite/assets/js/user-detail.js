@@ -4,13 +4,14 @@
    is always shown blank — the API stores it encrypted, not as a hash, but
    there's no reason to round-trip a decrypted secret to the browser just to
    pre-fill a form. Leaving it blank on save keeps the existing password;
-   typing one replaces it.
+   typing one replaces it. When the user being edited is the caller, the
+   role dropdown is disabled and the loaded role is sent back unchanged.
    ========================================================================== */
 (function () {
   "use strict";
 
   var esc = NW.esc;
-  var State = { id: null, roles: [] };
+  var State = { id: null, roles: [], currentUserId: null, roleId: null };
 
   function setStatus(text) {
     var statusEl = document.getElementById("user-detail-status");
@@ -26,7 +27,7 @@
 
   function loadRoles() {
     return NWApi.get("/role").then(function (roles) {
-      State.roles = roles || [];
+      State.roles = (roles || []).filter(function (r) { return r.name !== "Service"; });
       document.getElementById("edit-user-role").innerHTML = State.roles.map(function (r) {
         return '<option value="' + r.id + '">' + esc(r.name) + '</option>';
       }).join("");
@@ -40,8 +41,13 @@
       loadRoles()
     ]).then(function (results) {
       var user = results[0];
+      State.roleId = user.roleId;
       document.getElementById("edit-user-email").value = user.email;
       document.getElementById("edit-user-role").value = user.roleId;
+      if (user.id === State.currentUserId) {
+        document.getElementById("edit-user-role").disabled = true;
+        document.getElementById("edit-user-role-note").hidden = false;
+      }
       setStatus(null);
     }).catch(function (err) {
       setStatus(err.status === 404 ? "Brugeren blev ikke fundet." : "Kunne ikke hente bruger: " + err.message);
@@ -54,7 +60,8 @@
     var body = {
       id: State.id,
       email: data.get("email").trim(),
-      roleId: parseInt(data.get("roleId"), 10)
+      // A disabled select isn't in FormData, so editing yourself falls back to the loaded role.
+      roleId: State.id === State.currentUserId ? State.roleId : parseInt(data.get("roleId"), 10)
     };
     var password = data.get("password");
     if (password) body.newPassword = password;
@@ -67,7 +74,7 @@
     });
   }
 
-  document.addEventListener("DOMContentLoaded", function () {
+  function initPage() {
     State.id = parseInt(new URLSearchParams(window.location.search).get("id"), 10);
     if (isNaN(State.id)) {
       setStatus("Ingen bruger valgt.");
@@ -75,5 +82,16 @@
     }
     loadUser(State.id);
     document.getElementById("edit-user-form").addEventListener("submit", submitEditForm);
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    NWApi.get("/user/GetCurrentUserInfo").then(function (user) {
+      State.currentUserId = user.id;
+      return NW.isAdmin(user);
+    }).catch(function () {
+      return false;
+    }).then(function (admin) {
+      if (admin) { initPage(); } else { window.location.href = NW.url("index.php"); }
+    });
   });
 })();

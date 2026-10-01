@@ -14,6 +14,7 @@ namespace NimbusWatchApi.Managers
     Task<UserModel?> GetUser(int id);
     Task<UserModel?> GetUser(string email);
     Task<bool> CheckPasswordSignInAsync(LoginRequestDto login, string password);
+    Task<bool> CheckIfCompanyHasAUser(string companyId);
   }
 
   internal class UserManager : IUserManager
@@ -50,7 +51,8 @@ namespace NimbusWatchApi.Managers
           RoleId = userDto.RoleId,
           IsActive = true,
           CreatedAt = DateTime.UtcNow,
-          CompanyId = userDto.CompanyId
+          CompanyId = userDto.CompanyId,
+          PublicId = Guid.NewGuid()
         };
 
         await databaseManager.Users.AddUser(userModel);
@@ -136,7 +138,7 @@ namespace NimbusWatchApi.Managers
       }
       catch (Exception)
       {
-        throw;
+        return null;
       }
     }
 
@@ -149,7 +151,20 @@ namespace NimbusWatchApi.Managers
       }
       catch (Exception)
       {
-        throw;
+        return null;
+      }
+    }
+
+    public async Task<bool> CheckIfCompanyHasAUser(string companyId)
+    {
+      try
+      {
+        var result = await databaseManager.Users.CheckIfCompanyHasAUser(companyId);
+        return result;
+      }
+      catch (Exception)
+      {
+        return false;
       }
     }
   }

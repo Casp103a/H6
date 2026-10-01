@@ -1,8 +1,10 @@
 /* ==========================================================================
-   Create-user form — POST /api/user/register takes email, password, roleId
-   (picked from GET /api/role) and companyId (the logged-in user's own
-   company, from GET /api/company) — no fullName/phone at creation time.
-   On success, goes back to users.php.
+   Create-user form — POST /api/user/register (email, password, roleId,
+   companyId). roleId comes from GET /api/role, companyId from
+   GET /api/company. On success, goes back to users.php.
+
+   Admin-only page: this is just a client-side redirect gate, same pattern
+   as create-server.js — the API also enforces Admin-only on submit.
    ========================================================================== */
 (function () {
   "use strict";
@@ -16,9 +18,11 @@
     if (text) { el.textContent = text; el.hidden = false; } else { el.hidden = true; }
   }
 
+  // Service is the monitoring-agent role (see ServerService/ServiceAuth) —
+  // not something a human account created here should ever be given.
   function loadRoles() {
     return NWApi.get("/role").then(function (roles) {
-      State.roles = roles || [];
+      State.roles = (roles || []).filter(function (r) { return r.name !== "Service"; });
       document.getElementById("create-user-role").innerHTML = State.roles.map(function (r) {
         return '<option value="' + r.id + '">' + esc(r.name) + '</option>';
       }).join("");
@@ -50,10 +54,20 @@
     });
   }
 
-  document.addEventListener("DOMContentLoaded", function () {
+  function initPage() {
     Promise.all([loadCurrentCompany(), loadRoles()]).catch(function (err) {
       setCreateError("Kunne ikke hente roller: " + err.message);
     });
     document.getElementById("create-user-form").addEventListener("submit", submitCreateForm);
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    NWApi.get("/user/GetCurrentUserInfo").then(function (user) {
+      return NW.isAdmin(user);
+    }).catch(function () {
+      return false;
+    }).then(function (admin) {
+      if (admin) { initPage(); } else { window.location.href = NW.url("index.php"); }
+    });
   });
 })();

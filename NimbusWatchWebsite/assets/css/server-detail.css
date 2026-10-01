@@ -1,0 +1,185 @@
+/* ==========================================================================
+   Single-server detail view — sidebar, host header, alert banner, gauges,
+   graphs, and disk card. Split out of dashboard.css, which keeps the
+   fleet overview grid and the styles shared with other pages (header,
+   buttons, forms, tables, …). Load after dashboard.css.
+   ========================================================================== */
+
+/* ---------- Shell / grid ---------- */
+.layout {
+    display: grid;
+    grid-template-columns: 316px minmax(0, 1fr);
+    align-items: stretch;
+    min-width: 900px;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+    border-right: 1px solid var(--nf-divider);
+    background: var(--nf-base-100);
+    min-height: calc(100vh - 56px);
+}
+.sidebar__heading {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 16px 16px 10px;
+}
+.sidebar__heading-label {
+    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--nf-text-muted);
+}
+.sidebar__heading-count { font-size: 12px; color: var(--nf-text-muted); }
+
+.server-list { display: flex; flex-direction: column; padding: 0 8px 24px; }
+.server-row {
+    display: grid; grid-template-columns: 8px minmax(0,1fr) auto;
+    align-items: center; gap: 10px;
+    width: 100%; text-align: left;
+    padding: 9px 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: var(--nf-base-100);
+    cursor: pointer;
+    margin-bottom: 2px;
+    transition: var(--nf-transition);
+}
+.server-row:hover { border-color: var(--nf-border-color-hover); }
+.server-row--selected {
+    background: var(--nf-primary-light);
+    border-color: var(--nf-primary-border);
+}
+.server-row--selected:hover { border-color: var(--nf-primary-border); }
+.server-row__dot { width: 8px; height: 8px; border-radius: 999px; }
+.server-row__id { min-width: 0; }
+.server-row__name {
+    display: block; font-size: 13px; font-weight: 600; color: var(--nf-text-heading);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.server-row__sub { display: block; font-size: 11px; color: var(--nf-text-muted); margin-top: 1px; }
+.server-row__metrics { text-align: right; font-variant-numeric: tabular-nums; }
+.server-row__cpu { display: block; font-size: 12px; font-weight: 600; }
+.server-row__secondary { display: block; font-size: 11px; color: var(--nf-text-muted); margin-top: 1px; }
+
+/* ---------- Main ---------- */
+.main {
+    padding: 24px 28px 40px;
+    display: flex; flex-direction: column; gap: 20px;
+}
+
+.host-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; }
+.host-header__title-row { display: flex; align-items: center; gap: 10px; }
+.host-header__title { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: var(--nf-text-heading); }
+.host-header__meta {
+    margin-top: 5px; font-size: 12px; color: var(--nf-text-muted);
+    display: flex; gap: 14px; flex-wrap: wrap;
+}
+.host-header__meta i { margin-right: 6px; }
+.host-header__actions { display: flex; gap: 8px; }
+
+.alert-banner {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    background: oklch(from var(--nf-warning) 96% 0.05 h);
+    border: 1px solid oklch(from var(--nf-warning) 88% 0.07 h);
+    border-left: 3px solid var(--nf-warning);
+    border-radius: 6px;
+}
+[data-theme="dark"] .alert-banner {
+    background: oklch(from var(--nf-warning) 24% 0.07 h);
+    border-color: oklch(from var(--nf-warning) 38% 0.09 h);
+}
+.alert-banner__icon { color: var(--nf-warning); }
+.alert-banner__body { flex: 1; }
+.alert-banner__title { font-size: 13px; font-weight: 600; color: var(--nf-text-heading); }
+.alert-banner__text { font-size: 12px; color: var(--nf-text-muted); margin-top: 2px; }
+.alert-banner__link { font-size: 12px; font-weight: 600; white-space: nowrap; }
+
+.gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(232px, 1fr)); gap: 16px; }
+.gauge-card {
+    background: var(--nf-base-100); border: 1px solid var(--nf-divider); border-radius: 8px;
+    box-shadow: var(--nf-shadow-card);
+    padding: 16px;
+    display: flex; align-items: center; gap: 14px;
+}
+.gauge-ring { position: relative; width: 62px; height: 62px; flex: none; border-radius: 999px; }
+.gauge-ring__value {
+    position: absolute; inset: 7px; background: var(--nf-base-100); border-radius: 999px;
+    display: grid; place-items: center;
+    font-size: 13px; font-weight: 700; color: var(--nf-text-heading);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.gauge-ring__value--compact { font-size: 11px; letter-spacing: -0.02em; }
+.gauge-card__text { min-width: 0; }
+.gauge-card__label { font-size: 12px; font-weight: 600; color: var(--nf-text-muted); }
+.gauge-card__value {
+    font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: var(--nf-text-heading);
+    margin-top: 2px; font-variant-numeric: tabular-nums;
+}
+.gauge-card__hint { font-size: 11px; color: var(--nf-text-muted); margin-top: 2px; }
+
+/* ---------- Graph (per-server CPU/RAM/disk/network history) ---------- */
+.graph-card { padding: 18px; }
+.graph-card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.graph-card__title { font-size: 14px; font-weight: 700; color: var(--nf-text-heading); }
+.graph-card__controls { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+.graph-card__controls-label { font-size: 12px; font-weight: 600; color: var(--nf-text-muted); }
+.graph-interval-select {
+    height: 28px; padding: 0 8px;
+    font-size: 12px; font-weight: 500; color: var(--nf-text);
+    background: var(--nf-input-bg);
+    border: 1px solid var(--nf-border-color);
+    border-radius: var(--nf-border-radius-sm);
+    cursor: pointer;
+    transition: var(--nf-transition);
+}
+.graph-interval-select:hover { border-color: var(--nf-border-color-hover); }
+.graph-interval-select:focus-visible { border-color: var(--nf-border-color-focus); }
+
+/* Network sits beside the CPU/RAM/disk chart, not on it — bytes and % never share a y-scale (see dataviz: one axis). Splitting the row in
+   two also keeps each chart from ever getting as wide (and so as tall, via aspect-ratio below) as the full card. */
+.graph-charts-row { display: flex; gap: 24px; }
+.graph-chart-wrap { position: relative; flex: 1 1 0; min-width: 0; }
+.graph-chart-wrap + .graph-chart-wrap { padding-left: 24px; border-left: 1px solid var(--nf-divider); }
+/* Chart.js reads this box (responsive:true, maintainAspectRatio:false) to size the canvas — width:100% keeps it filling the card. */
+.graph-chart { width: 100%; aspect-ratio: 640 / 190; }
+
+.disk-card { padding: 18px; }
+.disk-card__title { font-size: 14px; font-weight: 700; color: var(--nf-text-heading); margin-bottom: 14px; }
+.volume__head { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; margin-bottom: 5px; }
+.volume__mount { font-weight: 600; color: var(--nf-text-heading); font-family: var(--nf-font-mono); }
+.volume__free { color: var(--nf-text-muted); font-variant-numeric: tabular-nums; }
+.volume__track { height: 6px; border-radius: 999px; background: var(--nf-track-bg); overflow: hidden; }
+.volume__fill { height: 100%; border-radius: 999px; }
+.volume__note { font-size: 11px; color: var(--nf-text-muted); margin-top: 4px; }
+
+.services-card { padding: 18px; }
+
+.disk-stats {
+    margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--nf-hairline);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.disk-stat__label { font-size: 11px; color: var(--nf-text-muted); }
+.disk-stat__value {
+    font-size: 15px; font-weight: 700; color: var(--nf-text-heading);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   Responsive — reflows through tablet (900px) and phone (480px) widths, clearing the desktop min-width set above.
+   ========================================================================== */
+@media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; min-width: 0; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--nf-divider); min-height: auto; }
+    .server-list { max-height: 320px; overflow-y: auto; }
+
+    .main { padding: 16px 16px 32px; }
+
+    .graph-charts-row { flex-direction: column; gap: 20px; }
+    .graph-chart-wrap + .graph-chart-wrap { padding-left: 0; border-left: none; padding-top: 18px; border-top: 1px solid var(--nf-divider); }
+}
+
+@media (max-width: 480px) {
+    .host-header__actions { width: 100%; }
+    .host-header__actions .btn { flex: 1; justify-content: center; }
+
+    .disk-stats { grid-template-columns: 1fr; }
+}

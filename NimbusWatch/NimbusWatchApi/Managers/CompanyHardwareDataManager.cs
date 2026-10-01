@@ -35,7 +35,10 @@ namespace NimbusWatchApi.Managers
           DiskTotalSpace = data.DiskTotalSpace,
           DiskRemainingSpace = data.DiskRemainingSpace,
           RamUsage = data.RamUsage,
-          RamTotal = data.RamTotal
+          RamTotal = data.RamTotal,
+          NetworkBytesSent = data.NetworkBytesSent,
+          NetworkBytesReceived = data.NetworkBytesReceived,
+          CreatedAt = DateTime.UtcNow
         };
 
         var result = await databaseManager.CompanyHardwareData.AddCompanyHardwareData(companyHardwareData);

@@ -26,8 +26,11 @@ namespace ServerService
       builder.Services.AddSingleton<IConfigReader, ConfigReader>();
       builder.Services.AddSingleton<IHardwareReader, HardwareReader>();
       builder.Services.AddSingleton<ITokenProvider, TokenProvider>();
+      builder.Services.AddSingleton<IServiceInfoFetcher, ServiceInfoFetcher>();
+      builder.Services.AddSingleton<IServiceReader, ServiceReader>();
       builder.Services.AddTransient<AuthHeaderHandler>();
       builder.Services.AddHostedService<Worker>();
+      builder.Services.AddHostedService<ConfigurationSyncService>();
 
       builder.Services.AddHttpClient("TokenClient")
         .ConfigureHttpClient((sp, client) =>
@@ -47,6 +50,8 @@ namespace ServerService
       using var stream = typeof(Program).Assembly
         .GetManifestResourceStream("ServerService.appsettings.json")!;
       builder.Configuration.AddJsonStream(stream);
+
+      builder.Logging.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
 
       var host = builder.Build();
       host.Run();

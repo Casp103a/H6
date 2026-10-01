@@ -1,6 +1,6 @@
 /* ==========================================================================
    Users admin — shared across users.php (list), user-create.php,
-   user-detail.php and profile.php, same list/detail pattern as the fleet
+   user-detail.php and profile*.php, same list/detail pattern as the fleet
    overview. Reuses .card, .data-table, .status-pill, .back-link etc. from
    dashboard.css rather than redefining them.
    ========================================================================== */
@@ -16,7 +16,11 @@
 .user-identity__avatar { width: 56px; height: 56px; font-size: 18px; flex: none; }
 .user-identity__name-row { display: flex; align-items: center; gap: 10px; }
 
-.user-info-card { padding: 18px; }
+.user-info-card { padding: 18px; margin-bottom: 16px; }
+
+.profile-info-list { display: flex; flex-direction: column; gap: 12px; margin: 0; }
+.profile-info-list dt { font-size: 11px; color: var(--nf-text-muted); }
+.profile-info-list dd { margin: 2px 0 0; font-weight: 500; }
 .user-info-grid {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     margin-top: 0; padding-top: 0; border-top: none;

@@ -29,9 +29,7 @@
     --nf-error:   oklch(0.637 0.237 25.331);
     --nf-neutral-status: oklch(0.551 0.027 264.36);
 
-    /* Badge pairs derived from the three status colors above — a pale
-       background tint plus a matching darker, readable text color. Used by
-       .status-pill/.state-pill's --ok/--warn/--crit modifiers below. */
+    /* Badge pairs: a pale tint + matching darker text, derived from the status colors above. */
     --nf-success-tint: oklch(from var(--nf-success) 96% 0.045 h);
     --nf-success-ink:  oklch(from var(--nf-success) 0.44 c h);
     --nf-warning-tint: oklch(from var(--nf-warning) 96% 0.05  h);
@@ -87,9 +85,7 @@
     --nf-menu-shadow:     0 8px 24px oklch(0% 0 0 / 8%), 0 2px 8px oklch(0% 0 0 / 4%);
     --nf-menu-item-hover: var(--nf-base-300);
 
-    /* Theme-aware structural roles. Light values equal the literals the
-       original prototype hardcoded; only [data-theme="dark"] below adds
-       real values, so light mode is unchanged. */
+    /* Theme-aware structural roles — only [data-theme="dark"] below overrides these, so light mode is unchanged. */
     --nf-quiet-bg:         var(--nf-gray-50);  /* recessed strips: page bg, search box, table footer */
     --nf-divider:          var(--nf-gray-200); /* card/table borders, separators */
     --nf-hairline:         var(--nf-gray-100); /* finer rules: row lines, axis rule */
@@ -99,19 +95,22 @@
     --nf-badge-neutral-bg: var(--nf-gray-100); /* neutral pill background (inactive user, etc.) */
     --nf-badge-neutral-fg: var(--nf-gray-600); /* neutral pill text */
 
-    /* Trend chart series (dashboard.js renderTrendChart) — CPU reuses the
-       brand blue used elsewhere for CPU (gauge ring); RAM/disk are new
-       categorical slots, validated together with it via
-       dataviz/scripts/validate_palette.js (all-pairs, light & dark). */
+    /* Graph series (server-detail.js). CPU reuses the brand blue; RAM/disk are validated together with it via dataviz/scripts/validate_palette.js. */
     --nf-chart-cpu:  var(--nf-primary);
     --nf-chart-ram:  #eb6834;
     --nf-chart-disk: #1baf7a;
+
+    /* Network graph series — its own chart/axis, so this pair only needs to be distinguishable from each other. */
+    --nf-chart-network-sent:     #8b5cf6;
+    --nf-chart-network-received: #d6336c;
 }
 
 /* ==========================================================================
    Dark theme — toggled via data-theme="dark" on <html> (assets/js/dashboard.js)
    ========================================================================== */
 [data-theme="dark"] {
+    color-scheme: dark;
+
     --nf-base-100: oklch(27.8% 0.033 256.848);
     --nf-base-200: oklch(23.26% 0.014 253.1);
     --nf-base-300: oklch(21.15% 0.012 254.09);
@@ -150,12 +149,12 @@
 
     --nf-chart-ram:  #d95926;
     --nf-chart-disk: #199e70;
+    --nf-chart-network-sent:     #9775fa;
+    --nf-chart-network-received: #e64980;
 }
 
 /* ==========================================================================
-   Nimbus Watch brand tokens — scoped to the logo mark/wordmark only. The
-   dashboard UI itself stays on the Metazo/Nova --nf-* system above; these
-   never drive dashboard chrome.
+   Nimbus Watch brand tokens — scoped to the logo mark/wordmark only, never dashboard chrome (that stays on the --nf-* system above).
    ========================================================================== */
 :root {
     --nw-ink:              #2b2925;
