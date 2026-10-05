@@ -21,30 +21,37 @@ namespace ServerService.Logic
     public HardwareReader(ILogger<HardwareReader> logger)
     {
       this.logger = logger;
+
       try
       {
-        var category = new PerformanceCounterCategory("Network Interface");
-        var instanceNames = category.GetInstanceNames();
+        cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total", readOnly: true);
+        cpuCounter.NextValue(); // prime
+      }
+      catch (Exception ex)
+      {
+        logger.LogWarning(ex, "CPU performance counter unavailable.");
+      }
 
-        var instanceName = instanceNames
+      try
+      {
+        var instanceName = new PerformanceCounterCategory("Network Interface")
+          .GetInstanceNames()
           .FirstOrDefault(n => n.Contains("Wi-Fi", StringComparison.OrdinalIgnoreCase)
                             || n.Contains("WiFi", StringComparison.OrdinalIgnoreCase)
                             || n.Contains("MediaTek", StringComparison.OrdinalIgnoreCase));
 
         if (instanceName is null)
         {
-          logger.LogWarning("No network interface found matching criteria");
+          logger.LogWarning("No network interface found matching criteria.");
+          return;
         }
 
         networkSentCounter = new PerformanceCounter("Network Interface", "Bytes Sent/sec", instanceName);
         networkRecvCounter = new PerformanceCounter("Network Interface", "Bytes Received/sec", instanceName);
-
-        cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total", readOnly: true);
-        cpuCounter.NextValue(); // prime; first sample is always 0
       }
-      catch (Exception)
+      catch (Exception ex)
       {
-        cpuCounter = null; // category missing or access denied
+        logger.LogWarning(ex, "Network performance counters unavailable.");
       }
     }
 
@@ -101,13 +108,26 @@ namespace ServerService.Logic
 
     public (long RemainingDisk, long totalDisk) ReadDiskUsage()
     {
-      // Implementation to read disk usage
-      var drives = DriveInfo.GetDrives().Where(d => d.IsReady && d.DriveType == DriveType.Fixed);
+      const long GB = 1024L * 1024 * 1024;
+      long total = 0, free = 0;
 
-      var totalDisk = drives.Sum(d => d.TotalSize) / (1024 * 1024 * 1024);
-      var remainingDisk = drives.Sum(d => d.AvailableFreeSpace) / (1024 * 1024 * 1024);
+      foreach (var drive in DriveInfo.GetDrives())
+      {
+        try
+        {
+          if (!drive.IsReady || drive.DriveType != DriveType.Fixed)
+            continue;
 
-      return (remainingDisk, totalDisk);
+          total += drive.TotalSize;
+          free += drive.AvailableFreeSpace;
+        }
+        catch (Exception ex)
+        {
+          logger.LogDebug(ex, "Could not read drive {Drive}", drive.Name);
+        }
+      }
+
+      return (free / GB, total / GB);
     }
 
     public (long bytesSend, long bytesReceived) ReadNetworkUsage()

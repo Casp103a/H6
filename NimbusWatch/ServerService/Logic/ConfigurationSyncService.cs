@@ -29,26 +29,33 @@ namespace ServerService.Logic
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-      var config = _configReader.Configuration;
-
-      _hubConnection = new HubConnectionBuilder()
-          .WithUrl($"{config.ApiBaseUrl.TrimEnd('/')}/hubs/configuration", options =>
-          {
-            options.AccessTokenProvider = async () =>
-                await _tokenProvider.GetTokenAsync(stoppingToken);
-          })
-          .WithAutomaticReconnect(new InfiniteRetryPolicy(MaxRetryDelay))
-          .Build();
-
-      RegisterHandlers(_hubConnection, stoppingToken);
-
-      while (!stoppingToken.IsCancellationRequested)
+      try
       {
-        await ConnectWithRetryAsync(_hubConnection, stoppingToken);
+        var config = _configReader.Configuration;
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl($"{config.ApiBaseUrl.TrimEnd('/')}/hubs/configuration", options =>
+            {
+              options.AccessTokenProvider = async () => await _tokenProvider.GetTokenAsync(stoppingToken);
+            })
+            .WithAutomaticReconnect(new InfiniteRetryPolicy(MaxRetryDelay))
+            .Build();
 
-        // Wait until the connection is closed for good (or service stops), then reconnect
-        await _closedSignal.Task.WaitAsync(stoppingToken);
-        _closedSignal = NewSignal();
+        RegisterHandlers(_hubConnection, stoppingToken);
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+          await ConnectWithRetryAsync(_hubConnection, stoppingToken);
+          await _closedSignal.Task.WaitAsync(stoppingToken);
+          _closedSignal = NewSignal();
+        }
+      }
+      catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+      {
+        // normal shutdown
+      }
+      catch (Exception ex)
+      {
+        _logger.LogCritical(ex, "Configuration sync service stopped unexpectedly.");
       }
     }
 

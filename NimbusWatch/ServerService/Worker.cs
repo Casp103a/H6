@@ -120,6 +120,8 @@ namespace ServerService
       var companyId = configReader.Configuration.CompanyId;
       var networkUsage = hardwareReader.ReadNetworkUsage();
 
+      var serviceId = await serviceInfoFetcher.GetServiceIdAsync(cancellationToken);
+
       var serviceDto = new CompanyHardwareDataDto
       {
         CpuUsages = (int)cpuUsage,
@@ -130,7 +132,7 @@ namespace ServerService
         DiskTotalSpace = diskUsage.totalDisk,
         NetworkBytesSent = networkUsage.bytesSend,
         NetworkBytesReceived = networkUsage.bytesReceived,
-        ServiceId = serviceInfoFetcher.ServiceId,
+        ServiceId = serviceId,
       };
 
       var json = JsonSerializer.Serialize(serviceDto, AppJsonSerializerContext.Default.CompanyHardwareDataDto);
@@ -142,7 +144,7 @@ namespace ServerService
         var report = new ServiceReportDto
         {
           Statuses = statuses,
-          ServerId = serviceInfoFetcher.ServiceId,
+          ServerId = serviceId,
         };
 
         var reportJson = JsonSerializer.Serialize(report, AppJsonSerializerContext.Default.ServiceReportDto);

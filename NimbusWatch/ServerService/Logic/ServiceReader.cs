@@ -29,12 +29,15 @@ namespace ServerService.Logic
       var newControllers = new List<ServiceController>();
       foreach (var serviceInfo in configReader.Configuration.Services)
       {
+        var controller = new ServiceController(serviceInfo.Name);
         try
         {
-          newControllers.Add(new ServiceController(serviceInfo.Name));
+          _ = controller.Status; // forces lookup – throws if the service doesn't exist
+          newControllers.Add(controller);
         }
         catch (InvalidOperationException ex)
         {
+          controller.Dispose();
           logger.LogError(ex, "Service '{Name}' not found.", serviceInfo.Name);
         }
       }
@@ -70,9 +73,10 @@ namespace ServerService.Logic
             });
           }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-          continue;
+          reports.Add(new ServiceStatusesDto { Name = controller.ServiceName, Status = "NotFound" });
+          logger.LogDebug(ex, "Could not read status of {Name}", controller.ServiceName);
         }
       }
       return reports;
