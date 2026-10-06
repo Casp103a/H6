@@ -10,10 +10,11 @@ namespace NimbusWatchApi.Managers
     Task<(Guid ClientId, string ClientSecret)?> AddAsync(CreateServerServiceDto client);
     Task<bool> UpdateAsync(string companyId, ServiceClientModel client);
     Task<bool> DeleteAsync(string companyId, int id);
-    Task<ServiceClientModel?> GetByClientIdAsync(string companyId, Guid clientId);
-    Task<List<ServiceClientModel>?> GetAllByCompanyIdAsync(string companyId);
-    Task<ServiceClientModel?> GetByClientIdAsync(string companyId, string clientId);
-  }
+    Task<ServiceInfoDto?> GetByClientIdAsync(string companyId, Guid clientId);
+    Task<List<ServerInfoDto>?> GetAllByCompanyIdAsync(string companyId);
+    Task<ServerInfoDto?> GetByClientIdAsync(string companyId, string clientId);
+    Task<ServiceClientModel?> GetServiceClientByClientId(string companyId, string clientId);
+    }
 
   public class ServiceClientManager : IServiceClientManager
   {
@@ -73,11 +74,18 @@ namespace NimbusWatchApi.Managers
       }
     }
 
-    public async Task<ServiceClientModel?> GetByClientIdAsync(string companyId, Guid clientId)
+    public async Task<ServiceInfoDto?> GetByClientIdAsync(string companyId, Guid clientId)
     {
       try
       {
-        return await databaseManager.ServiceClients.GetServiceClientByClientId(companyId, clientId);
+        var client = await databaseManager.ServiceClients.GetServiceClientByClientId(companyId, clientId);
+        if (client == null)
+          return null;
+
+        return new ServiceInfoDto
+        {
+          Id = client.Id,
+        };
       }
       catch (Exception)
       {
@@ -85,7 +93,54 @@ namespace NimbusWatchApi.Managers
       }
     }
 
-    public async Task<ServiceClientModel?> GetByClientIdAsync(string companyId, string clientId)
+    public async Task<ServerInfoDto?> GetByClientIdAsync(string companyId, string clientId)
+    {
+      try
+      {
+        if (!Guid.TryParse(clientId, out var parsedClientId))
+          return null;
+
+        var model = await databaseManager.ServiceClients.GetServiceClientByClientId(companyId, parsedClientId);
+        if (model == null)
+          return null;
+
+        return new ServerInfoDto
+        {
+          ClientId = model.ClientId.ToString(),
+          IpAddress = model.IpAddress,
+          ServerName = model.ServerName,
+          ServerTypeId = model.ServerTypeId,
+        };
+      }
+      catch (Exception)
+      {
+        return null;
+      }
+    }
+
+    public async Task<List<ServerInfoDto>?> GetAllByCompanyIdAsync(string companyId)
+    {
+      try
+      {
+        var clients = await databaseManager.ServiceClients.GetAllServiceClientsByCompanyId(companyId);
+        if (clients == null)
+          return null;
+
+        return clients.Select(c => new ServerInfoDto
+        {
+            ClientId = c.ClientId.ToString(),
+            IpAddress = c.IpAddress,
+            ServerName = c.ServerName,
+            ServerTypeId = c.ServerTypeId,
+        }).ToList();
+      }
+      catch (Exception)
+      {
+        return null;
+      }
+    }
+
+    public async Task<ServiceClientModel?> GetServiceClientByClientId(string companyId, string clientId)
     {
       try
       {
@@ -93,18 +148,6 @@ namespace NimbusWatchApi.Managers
           return null;
 
         return await databaseManager.ServiceClients.GetServiceClientByClientId(companyId, parsedClientId);
-      }
-      catch (Exception)
-      {
-        return null;
-      }
-    }
-
-    public async Task<List<ServiceClientModel>?> GetAllByCompanyIdAsync(string companyId)
-    {
-      try
-      {
-        return await databaseManager.ServiceClients.GetAllServiceClientsByCompanyId(companyId);
       }
       catch (Exception)
       {

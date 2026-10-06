@@ -38,7 +38,7 @@ namespace NimbusWatchApi.Controllers
       if (!string.Equals(request.GrantType, "client_credentials", StringComparison.Ordinal))
         return BadRequest("Unsupported grant_type.");
 
-      var client = await serviceClientManager.GetByClientIdAsync(companyId, request.ClientId);
+      var client = await serviceClientManager.GetServiceClientByClientId(companyId, request.ClientId);
       if (client == null || !client.IsActive)
         return Unauthorized();
 

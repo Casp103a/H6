@@ -10,8 +10,8 @@ namespace NimbusWatchApi.Managers
     //Task<bool> UpdateAsync(CompanyHardwareData data);
     //Task<bool> DeleteAsync(int id);
     //Task<CompanyHardwareData?> GetByIdAsync(int id);
-    Task<List<CompanyHardwareData>> GetAllByCompanyIdAsync(string companyId);
-    Task<List<CompanyHardwareData>> GetAllByServiceIdAsync(string companyId, int serviceId);
+    Task<List<CompanyHardwareDataDto>> GetAllByCompanyIdAsync(string companyId);
+    Task<List<CompanyHardwareDataDto>> GetAllByServiceIdAsync(string companyId, int serviceId);
   }
 
   public class CompanyHardwareDataManager : ICompanyHardwareDataManager
@@ -55,30 +55,54 @@ namespace NimbusWatchApi.Managers
     //  throw new NotImplementedException();
     //}
 
-    public async Task<List<CompanyHardwareData>> GetAllByCompanyIdAsync(string companyId)
+    public async Task<List<CompanyHardwareDataDto>> GetAllByCompanyIdAsync(string companyId)
     {
       try
       {
         var result = await databaseManager.CompanyHardwareData.GetCompanyHardwareDataByCompanyId(companyId);
-        return result;
+        return result.Select(d => new CompanyHardwareDataDto
+        {
+          CompanyId = d.CompanyId,
+          ServiceId = d.ServiceId,
+          CpuUsages = d.CpuUsages,
+          DiskTotalSpace = d.DiskTotalSpace,
+          DiskRemainingSpace = d.DiskRemainingSpace,
+          RamUsage = d.RamUsage,
+          RamTotal = d.RamTotal,
+          NetworkBytesSent = d.NetworkBytesSent,
+          NetworkBytesReceived = d.NetworkBytesReceived,
+          CreatedAt = d.CreatedAt
+        }).ToList();
       }
       catch (Exception)
       {
 
-        return new List<CompanyHardwareData>();
+        return new List<CompanyHardwareDataDto>();
       }
     }
 
-    public async Task<List<CompanyHardwareData>> GetAllByServiceIdAsync(string companyId, int serviceId)
+    public async Task<List<CompanyHardwareDataDto>> GetAllByServiceIdAsync(string companyId, int serviceId)
     {
       try
       {
         var result = await databaseManager.CompanyHardwareData.GetCompanyHardwareDataByServiceId(companyId, serviceId);
-        return result;
+        return result.Select(d => new CompanyHardwareDataDto
+        {
+          CompanyId = d.CompanyId,
+          ServiceId = d.ServiceId,
+          CpuUsages = d.CpuUsages,
+          DiskTotalSpace = d.DiskTotalSpace,
+          DiskRemainingSpace = d.DiskRemainingSpace,
+          RamUsage = d.RamUsage,
+          RamTotal = d.RamTotal,
+          NetworkBytesSent = d.NetworkBytesSent,
+          NetworkBytesReceived = d.NetworkBytesReceived,
+          CreatedAt = d.CreatedAt
+        }).ToList();
       }
       catch (Exception)
       {
-        return new List<CompanyHardwareData>();
+        return new List<CompanyHardwareDataDto>();
       }
     }
 

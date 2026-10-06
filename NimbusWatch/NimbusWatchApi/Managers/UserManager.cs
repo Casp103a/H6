@@ -10,9 +10,11 @@ namespace NimbusWatchApi.Managers
     Task<bool?> CreateAsync(RegisterUserDto user);
     Task<bool?> UpdateAsync(UserModel user, bool passwordChanged = false);
     Task<bool?> DeleteAsync(UserModel user);
-    Task<List<UserModel>> GetAllUsers(string companyId);
-    Task<UserModel?> GetUser(int id);
-    Task<UserModel?> GetUser(string email);
+    Task<List<UserInfoDto>> GetAllUsers(string companyId);
+    Task<UserInfoDto?> GetUser(int id);
+    Task<UserInfoDto?> GetUser(string email);
+    Task<UserModel?> GetUserModel(string email);
+    Task<UserModel?> GetUserModel(int id);
     Task<bool> CheckPasswordSignInAsync(LoginRequestDto login, string password);
     Task<bool> CheckIfCompanyHasAUser(string companyId);
   }
@@ -99,15 +101,22 @@ namespace NimbusWatchApi.Managers
       }
     }
 
-    public async Task<List<UserModel>> GetAllUsers(string companyId)
+    public async Task<List<UserInfoDto>> GetAllUsers(string companyId)
     {
       try
       {
-        return await databaseManager.Users.GetAllUsers(companyId);
+        var users = await databaseManager.Users.GetAllUsers(companyId);
+        return users.Select(u => new UserInfoDto
+        {
+          Id = u.Id,
+          Email = u.Email,
+          RoleId = u.RoleId,
+          PublicId = u.PublicId
+        }).ToList();
       }
       catch (Exception)
       {
-        return new List<UserModel>();
+        return new List<UserInfoDto>();
       }
     }
 
@@ -129,11 +138,51 @@ namespace NimbusWatchApi.Managers
       }
     }
 
-    public async Task<UserModel?> GetUser(int id)
+    public async Task<UserInfoDto?> GetUser(int id)
     {
       try
       {
         var user = await databaseManager.Users.GetUser(id);
+        if (user == null) return null;
+        return new UserInfoDto
+        {
+          Id = user.Id,
+          Email = user.Email,
+          RoleId = user.RoleId,
+          PublicId = user.PublicId
+        };
+      }
+      catch (Exception)
+      {
+        return null;
+      }
+    }
+
+    public async Task<UserInfoDto?> GetUser(string email)
+    {
+      try
+      {
+        var user = await databaseManager.Users.GetUser(email);
+        if (user == null) return null;
+        return new UserInfoDto
+        {
+          Id = user.Id,
+          Email = user.Email,
+          RoleId = user.RoleId,
+          PublicId = user.PublicId
+        };
+      }
+      catch (Exception)
+      {
+        return null;
+      }
+    }
+
+    public async Task<UserModel?> GetUserModel(string email)
+    {
+      try
+      {
+        var user = await databaseManager.Users.GetUser(email);
         return user;
       }
       catch (Exception)
@@ -142,11 +191,11 @@ namespace NimbusWatchApi.Managers
       }
     }
 
-    public async Task<UserModel?> GetUser(string email)
+    public async Task<UserModel?> GetUserModel(int id)
     {
       try
       {
-        var user = await databaseManager.Users.GetUser(email);
+        var user = await databaseManager.Users.GetUser(id);
         return user;
       }
       catch (Exception)

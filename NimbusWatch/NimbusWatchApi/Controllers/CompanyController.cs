@@ -46,7 +46,7 @@ namespace NimbusWatchApi.Controllers
       if (username == null)
         return BadRequest("Token missing");
 
-      var user = await userManager.GetUser(username);
+      var user = await userManager.GetUserModel(username);
 
       if (user == null)
         return NotFound();

@@ -58,7 +58,7 @@ namespace NimbusWatchApi.Controllers
       if (string.IsNullOrWhiteSpace(username) || !Guid.TryParse(sid, out var usedRefreshTokenId))
         return Unauthorized();
 
-      var user = await userManager.GetUser(username);
+      var user = await userManager.GetUserModel(username);
       if (user == null)
         return Unauthorized();
 
@@ -146,7 +146,7 @@ namespace NimbusWatchApi.Controllers
           return false;
         }
 
-        var user = await userManager.GetUser(username);
+        var user = await userManager.GetUserModel(username);
         if (user == null)
         {
           return false;
@@ -264,36 +264,36 @@ namespace NimbusWatchApi.Controllers
       }
     }
 
-    private async Task<UserModel?> TryGetUserFromAccessToken(string accessToken)
-    {
-      try
-      {
-        var principal = tokenService.ValidateToken(accessToken);
-        var username = principal.Identity?.Name;
-        if (string.IsNullOrWhiteSpace(username)) return null;
+    //private async Task<UserModel?> TryGetUserFromAccessToken(string accessToken)
+    //{
+    //  try
+    //  {
+    //    var principal = tokenService.ValidateToken(accessToken);
+    //    var username = principal.Identity?.Name;
+    //    if (string.IsNullOrWhiteSpace(username)) return null;
 
-        return await userManager.GetUser(username);
-      }
-      catch (SecurityTokenExpiredException)
-      {
-        try
-        {
-          var principal = tokenService.ValidateExpiredAccessToken(accessToken);
-          var username = principal.Identity?.Name;
-          if (string.IsNullOrWhiteSpace(username)) return null;
+    //    return await userManager.GetUser(username);
+    //  }
+    //  catch (SecurityTokenExpiredException)
+    //  {
+    //    try
+    //    {
+    //      var principal = tokenService.ValidateExpiredAccessToken(accessToken);
+    //      var username = principal.Identity?.Name;
+    //      if (string.IsNullOrWhiteSpace(username)) return null;
 
-          return await userManager.GetUser(username);
-        }
-        catch (SecurityTokenException)
-        {
-          return null;
-        }
-      }
-      catch (SecurityTokenException)
-      {
-        return null;
-      }
-    }
+    //      return await userManager.GetUser(username);
+    //    }
+    //    catch (SecurityTokenException)
+    //    {
+    //      return null;
+    //    }
+    //  }
+    //  catch (SecurityTokenException)
+    //  {
+    //    return null;
+    //  }
+    //}
 
     private void ClearAuthCookies()
     {
