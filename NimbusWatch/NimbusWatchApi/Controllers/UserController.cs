@@ -104,17 +104,12 @@ namespace NimbusWatchApi.Controllers
     {
       try
       {
+        if (!ModelState.IsValid)
+          return BadRequest(ModelState);
+
         var users = await userManager.GetAllUsers(companyId);
 
-        var userDtos = users.Select(u => new UserInfoDto
-        {
-          Id = u.Id,
-          Email = u.Email,
-          RoleId = u.RoleId,
-          PublicId = u.PublicId,
-        }).ToList();
-
-        return Ok(userDtos);
+        return Ok(users);
       }
       catch (Exception ex)
       {
@@ -139,15 +134,7 @@ namespace NimbusWatchApi.Controllers
       if (user == null)
         return NotFound();
 
-      var userInfoDto = new UserInfoDto
-      {
-        Id = user.Id,
-        Email = user.Email,
-        RoleId = user.RoleId,
-        PublicId = user.PublicId,
-      };
-
-      return Ok(userInfoDto);
+      return Ok(user);
     }
 
     [HttpGet("GetUser/{id}")]
@@ -181,7 +168,7 @@ namespace NimbusWatchApi.Controllers
         if (string.IsNullOrEmpty(dto.Email) || dto.RoleId < 0)
           return BadRequest();
 
-        var existingUser = await userManager.GetUser(id);
+        var existingUser = await userManager.GetUserModel(id);
 
         if (existingUser == null)
           return NotFound();

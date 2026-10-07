@@ -71,15 +71,7 @@ namespace NimbusWatchApi.Controllers
       var result = await serviceClientManager.GetByClientIdAsync(companyId, clientId);
       if (result != null)
       {
-        var serverInfo = new ServerInfoDto
-        {
-          ServerName = result.ServerName,
-          IpAddress = result.IpAddress,
-          ClientId = result.ClientId.ToString(),
-          ServerTypeId = result.ServerTypeId
-        };
-
-        return Ok(serverInfo);
+        return Ok(result);
       }
       else
         return NotFound("Service client not found.");
@@ -95,15 +87,7 @@ namespace NimbusWatchApi.Controllers
       var result = await serviceClientManager.GetAllByCompanyIdAsync(companyId);
       if (result != null && result.Any())
       {
-        var serverInfos = result.Select(r => new ServerInfoDto
-        {
-          ServerName = r.ServerName,
-          IpAddress = r.IpAddress,
-          ClientId = r.ClientId.ToString(),
-          ServerTypeId = r.ServerTypeId
-        });
-
-        return Ok(serverInfos);
+        return Ok(result);
       }
       else
         return NotFound("No service clients found for the specified company.");
@@ -119,12 +103,7 @@ namespace NimbusWatchApi.Controllers
       var result = await serviceClientManager.GetByClientIdAsync(companyId, clientId);
       if (result != null)
       {
-        var serviceInfo = new ServiceInfoDto
-        {
-          Id = result.Id,
-        };
-
-        return Ok(serviceInfo);
+        return Ok(result);
       }
       else
         return NotFound("Service client not found.");
