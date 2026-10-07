@@ -7,7 +7,6 @@ namespace NimbusWatchApi.Controllers
 {
   [Route("api/[controller]")]
   [ApiController]
-  [Authorize]
   public class UserProfileController : ControllerBase
   {
     private readonly IUserProfileManager userProfileManager;
@@ -20,11 +19,12 @@ namespace NimbusWatchApi.Controllers
     }
 
     [HttpGet]
+    [Authorize]
     public async Task<IActionResult> GetUserProfile()
     {
       if (!ModelState.IsValid)
         return BadRequest(ModelState);
-      
+
       var username = User.Identity?.Name;
 
       if (username == null)
@@ -44,6 +44,7 @@ namespace NimbusWatchApi.Controllers
     }
 
     [HttpPost("create")]
+    [Authorize]
     public async Task<IActionResult> CreateUserProfile([FromBody] UserProfileRequestsDto request)
     {
       if (!ModelState.IsValid)
@@ -68,6 +69,7 @@ namespace NimbusWatchApi.Controllers
     }
 
     [HttpPut("update")]
+    [Authorize]
     public async Task<IActionResult> UpdateUserProfile([FromBody] UserProfileRequestsDto request)
     {
       if (!ModelState.IsValid)

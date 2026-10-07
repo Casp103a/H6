@@ -19,6 +19,7 @@ namespace NimbusWatchApi.Controllers
     }
 
     [HttpGet("GetAll/{companyId}")]
+    [Authorize]
     public async Task<IActionResult> GetAllByCompanyIdAsync([FromRoute] string companyId)
     {
       if (!ModelState.IsValid)
@@ -53,6 +54,7 @@ namespace NimbusWatchApi.Controllers
     }
 
     [HttpGet("GetHardwareData/{companyId}")]
+    [Authorize]
     public async Task<IActionResult> GetHardwareDataAsync([FromRoute] string companyId, [FromQuery] string clientId)
     {
       if (!ModelState.IsValid)
