@@ -21,7 +21,7 @@ namespace ServerService.Logic
       ILogger<TokenProvider> logger)
     {
       this.configReader = configReader;
-      this.httpClient = factory.CreateClient("TokenClient");
+      httpClient = factory.CreateClient("TokenClient");
       this.logger = logger;
     }
 

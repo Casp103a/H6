@@ -19,4 +19,8 @@
     <ProjectReference Include="..\ClassLibrary\ClassLibrary.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="TestSuit" />
+  </ItemGroup>
+
 </Project>

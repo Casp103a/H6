@@ -8,47 +8,47 @@ namespace ServerService.Logic
   {
     private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromMinutes(1);
 
-    private readonly IConfigReader _configReader;
-    private readonly ITokenProvider _tokenProvider;
-    private readonly ILogger<ConfigurationSyncService> _logger;
-    private HubConnection? _hubConnection;
+    private readonly IConfigReader configReader;
+    private readonly ITokenProvider tokenProvider;
+    private readonly ILogger<ConfigurationSyncService> logger;
+    private HubConnection? hubConnection;
 
     // Signals the main loop that the connection has closed and must be restarted
-    private TaskCompletionSource _closedSignal = NewSignal();
-    private bool _isDisconnected;
+    private TaskCompletionSource closedSignal = NewSignal();
+    private bool isDisconnected;
 
     public ConfigurationSyncService(
         IConfigReader configReader,
         ITokenProvider tokenProvider,
         ILogger<ConfigurationSyncService> logger)
     {
-      _configReader = configReader;
-      _tokenProvider = tokenProvider;
-      _logger = logger;
+      this.configReader = configReader;
+      this.tokenProvider = tokenProvider;
+      this.logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-      var config = _configReader.Configuration;
+      var config = configReader.Configuration;
 
-      _hubConnection = new HubConnectionBuilder()
+      hubConnection = new HubConnectionBuilder()
           .WithUrl($"{config.ApiBaseUrl.TrimEnd('/')}/hubs/configuration", options =>
           {
             options.AccessTokenProvider = async () =>
-                await _tokenProvider.GetTokenAsync(stoppingToken);
+                await tokenProvider.GetTokenAsync(stoppingToken);
           })
           .WithAutomaticReconnect(new InfiniteRetryPolicy(MaxRetryDelay))
           .Build();
 
-      RegisterHandlers(_hubConnection, stoppingToken);
+      RegisterHandlers(hubConnection, stoppingToken);
 
       while (!stoppingToken.IsCancellationRequested)
       {
-        await ConnectWithRetryAsync(_hubConnection, stoppingToken);
+        await ConnectWithRetryAsync(hubConnection, stoppingToken);
 
         // Wait until the connection is closed for good (or service stops), then reconnect
-        await _closedSignal.Task.WaitAsync(stoppingToken);
-        _closedSignal = NewSignal();
+        await closedSignal.Task.WaitAsync(stoppingToken);
+        closedSignal = NewSignal();
       }
     }
 
@@ -82,8 +82,8 @@ namespace ServerService.Logic
           "UpdateConfiguration",
           async dto =>
           {
-            _logger.LogInformation("Received configuration update.");
-            await _configReader.UpdateAsync(dto, stoppingToken);
+            logger.LogInformation("Received configuration update.");
+            await configReader.UpdateAsync(dto, stoppingToken);
             return GetCurrentConfiguration();
           });
 
@@ -92,7 +92,7 @@ namespace ServerService.Logic
           "GetConfiguration",
           () =>
           {
-            _logger.LogInformation("Configuration requested by API.");
+            logger.LogInformation("Configuration requested by API.");
             return GetCurrentConfiguration();
           });
 
@@ -105,48 +105,48 @@ namespace ServerService.Logic
       connection.Reconnected += connectionId =>
       {
         MarkConnected(0);
-        _logger.LogDebug("Reconnected with ConnectionId {ConnectionId}", connectionId);
+        logger.LogDebug("Reconnected with ConnectionId {ConnectionId}", connectionId);
         return Task.CompletedTask;
       };
 
       connection.Closed += error =>
       {
-        _logger.LogDebug(error, "Configuration hub connection closed; restarting connect loop.");
-        _closedSignal.TrySetResult();
+        logger.LogDebug(error, "Configuration hub connection closed; restarting connect loop.");
+        closedSignal.TrySetResult();
         return Task.CompletedTask;
       };
     }
 
     private void MarkDisconnected(Exception? error, int attempt)
     {
-      if (!_isDisconnected)
+      if (!isDisconnected)
       {
-        _isDisconnected = true;
-        _logger.LogWarning(error,
+        isDisconnected = true;
+        logger.LogWarning(error,
           "Lost connection to configuration hub. Retrying in the background; further failures are suppressed.");
       }
       else
       {
-        _logger.LogDebug("Configuration hub connect attempt {Attempt} failed: {Message}", attempt, error?.Message);
+        logger.LogDebug("Configuration hub connect attempt {Attempt} failed: {Message}", attempt, error?.Message);
       }
     }
 
     private void MarkConnected(int attempts)
     {
-      if (_isDisconnected)
+      if (isDisconnected)
       {
-        _isDisconnected = false;
-        _logger.LogInformation("Connection to configuration hub restored.");
+        isDisconnected = false;
+        logger.LogInformation("Connection to configuration hub restored.");
       }
       else if (attempts == 0)
       {
-        _logger.LogInformation("Connected to configuration hub.");
+        logger.LogInformation("Connected to configuration hub.");
       }
     }
 
     private ConfigurationDto GetCurrentConfiguration()
     {
-      var current = _configReader.Configuration;
+      var current = configReader.Configuration;
       return new ConfigurationDto
       {
         ReportFrequency = current.ReportFrequencyInMilliSec,
@@ -161,10 +161,10 @@ namespace ServerService.Logic
     {
       await base.StopAsync(cancellationToken);
 
-      if (_hubConnection is not null)
+      if (hubConnection is not null)
       {
-        await _hubConnection.DisposeAsync();
-        _hubConnection = null;
+        await hubConnection.DisposeAsync();
+        hubConnection = null;
       }
     }
 
